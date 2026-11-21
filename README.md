@@ -296,16 +296,22 @@ Use `http://`, not `https://`.
 
 **Dashboards → New → Import**, enter the ID, click **Load**, pick the **Prometheus** data source.
 
-| ID | Dashboard |
-|---|---|
-| `1860` | Node Exporter Full |
-| `7249` | Kubernetes Cluster |
-| `13332` | kube-state-metrics |
+| ID | Dashboard | Use it for |
+|---|---|---|
+| `1860` | Node Exporter Full | Deep CPU, RAM, disk and network per node |
+| `13332` | kube-state-metrics v2 | Pod, deployment and node state |
+| `7249` | Kubernetes Cluster | Basic cluster overview |
+| `15757` | Kubernetes / Views / Global | Best first screen: whole cluster at a glance |
+| `15758` | Kubernetes / Views / Namespaces | Usage per namespace |
+| `15759` | Kubernetes / Views / Nodes | Per-node detail |
+| `15760` | Kubernetes / Views / Pods | Per-pod CPU, memory, restarts |
+| `15761` | Kubernetes / System / API Server | Control plane health (may be partly empty on kind) |
+| `13659` | Blackbox Exporter (HTTP prober) | Uptime, response time, SSL expiry |
 
 </details>
 
 > [!TIP]
-> "No data"? Pick a value in the dropdowns at the top (Job, Instance, Nodename). The Node Exporter screenshots use **Job: `kubernetes-pods`**. `cluster: None` is normal for a single cluster.
+> "No data"? Pick a value in the dropdowns at the top (Job, Instance, Nodename). The Node Exporter screenshots use **Job: `kubernetes-pods`**. `cluster: None` is normal for a single cluster. The `Kubernetes / Views` dashboards need the `kubernetes-cadvisor` and `kube-state-metrics` targets to be **UP**.
 
 **Check:** the FinOps dashboard shows live numbers.
 
@@ -468,6 +474,7 @@ terraform apply        # to bring it back, then wait ~5 minutes
 | `InvalidKeyPair.NotFound` | `key_name` misspelled, includes `.pem`, or the key is not in `ap-south-1` |
 | `UnauthorizedOperation` | IAM user lacks EC2 permissions. Attach `AmazonEC2FullAccess` |
 | No VPC or subnet found | No default VPC. VPC console → Actions → Create default VPC |
+| `InvalidGroup.Duplicate` | A security group with the same name already exists in the VPC but not in Terraform state. Import it with `terraform import module.security-group.aws_security_group.instance_sg <sg-id>`, or delete the old group and re-run `terraform apply` |
 | `ssh`: `Permission denied (publickey)` | Wrong key, wrong user (use `ubuntu`), or loose permissions (`chmod 400`) |
 | `ssh` times out | Instance still starting, IP changed, or port 22 blocked |
 
@@ -569,6 +576,7 @@ overwatch/
 - [ ] Slack or email alert notifications
 - [ ] Per-container metrics with cAdvisor
 - [ ] Remote Terraform state in S3
+- [ ] Auto-provision the community dashboards (15757-15760, 13659) as ConfigMaps
 
 ---
 
