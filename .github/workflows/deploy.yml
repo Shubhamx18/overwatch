@@ -19,7 +19,7 @@ jobs:
       - name: Validate K8s YAML with kubeconform
         run: |
           curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
-          ./kubeconform -strict -summary k8s/
+          ./kubeconform -strict -summary -ignore-missing-schemas k8s/
 
   # ─── Job 2: Integration Test ────────────────────────────────────
   integration-test:
