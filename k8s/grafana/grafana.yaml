@@ -34,6 +34,15 @@ data:
         allowUiUpdates: true
         options:
           path: /var/lib/grafana/dashboards/finops
+      - name: 'node-exporter'
+        orgId: 1
+        folder: 'Node Exporter'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/node-exporter
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -100,6 +109,8 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards
             - name: grafana-finops-dashboard
               mountPath: /var/lib/grafana/dashboards/finops
+            - name: grafana-node-exporter-dashboard
+              mountPath: /var/lib/grafana/dashboards/node-exporter
           resources:
             requests:
               cpu: 100m
@@ -132,6 +143,9 @@ spec:
         - name: grafana-finops-dashboard
           configMap:
             name: grafana-finops-dashboard
+        - name: grafana-node-exporter-dashboard
+          configMap:
+            name: grafana-node-exporter-dashboard
 ---
 apiVersion: v1
 kind: Service
