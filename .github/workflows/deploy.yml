@@ -17,14 +17,11 @@ jobs:
 
       - name: Validate Kubernetes YAML files
         run: |
+          echo "=== Installing kubeconform ==="
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          chmod +x kubeconform
           echo "=== Validating K8s manifests ==="
-          kubectl apply --dry-run=client --validate=false -f k8s/namespace/
-          kubectl apply --dry-run=client --validate=false -f k8s/prometheus/
-          kubectl apply --dry-run=client --validate=false -f k8s/alertmanager/
-          kubectl apply --dry-run=client --validate=false -f k8s/grafana/
-          kubectl apply --dry-run=client --validate=false -f k8s/node-exporter/
-          kubectl apply --dry-run=client --validate=false -f k8s/kube-state-metrics/
-          kubectl apply --dry-run=client --validate=false -f k8s/blackbox-exporter/
+          ./kubeconform -strict -summary k8s/
           echo "=== All manifests are valid ==="
 
       - name: Setup Terraform
