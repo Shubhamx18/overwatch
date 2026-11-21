@@ -394,7 +394,7 @@ data:
 
       # Disk utilization %
       - record: finops:disk_utilization
-        expr: (1 - (node_filesystem_free_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100
+        expr: (1 - (node_filesystem_free_bytes{fstype!="tmpfs",fstype!="overlay",mountpoint!=""} / node_filesystem_size_bytes{fstype!="tmpfs",fstype!="overlay",mountpoint!=""})) * 100
 
       # Total RAM in GB
       - record: finops:total_ram_gb
@@ -402,7 +402,7 @@ data:
 
       # Total Disk in GB
       - record: finops:total_disk_gb
-        expr: node_filesystem_size_bytes{mountpoint="/"} / 1024 / 1024 / 1024
+        expr: node_filesystem_size_bytes{fstype!="tmpfs",fstype!="overlay",mountpoint!=""} / 1024 / 1024 / 1024
 ---
 apiVersion: apps/v1
 kind: Deployment
