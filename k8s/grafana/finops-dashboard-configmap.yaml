@@ -10,32 +10,36 @@ data:
     {
       "id": null,
       "uid": "finops-cost-intel",
-      "title": "💰 Overwatch — FinOps Cost Intelligence",
-      "description": "EC2 resource utilization and cost prediction — Overwatch",
-      "tags": ["finops", "cost", "aws", "ec2"],
+      "title": "Overwatch - FinOps Cost Intelligence",
+      "description": "Real resource utilization and AWS cost visibility",
+      "tags": ["finops", "cost", "aws"],
       "timezone": "browser",
       "schemaVersion": 38,
-      "version": 1,
+      "version": 2,
       "refresh": "5m",
-      "time": { "from": "now-7d", "to": "now" },
+      "time": { "from": "now-3h", "to": "now" },
       "panels": [
+
         {
           "id": 1,
           "type": "row",
-          "title": "📊 Current Resource Utilization",
+          "title": "Resource Utilization — What You Are Actually Using",
           "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
           "collapsed": false
         },
+
         {
           "id": 2,
-          "type": "stat",
-          "title": "CPU Utilization (24h avg)",
-          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+          "type": "gauge",
+          "title": "CPU Usage",
+          "description": "Real-time CPU utilization across all nodes",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
           "fieldConfig": {
             "defaults": {
               "unit": "percent",
               "min": 0,
               "max": 100,
+              "decimals": 1,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -43,131 +47,34 @@ data:
                   { "color": "yellow", "value": 60 },
                   { "color": "red", "value": 85 }
                 ]
-              },
-              "mappings": []
-            }
-          },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area" },
-          "targets": [
-            {
-              "expr": "finops:cpu_utilization_24h",
-              "legendFormat": "CPU %",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "id": 15,
-          "type": "row",
-          "title": "AWS Cost Estimation (t3.medium ap-south-1)",
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
-          "collapsed": false
-        },
-        {
-          "id": 16,
-          "type": "stat",
-          "title": "Hourly Rate",
-          "description": "t3.medium on-demand price in ap-south-1 (Mumbai)",
-          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 39 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "currencyUSD",
-              "decimals": 4,
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
-            }
-          },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
-          "targets": [{ "expr": "finops:ec2_hourly_cost_usd", "legendFormat": "$/hr", "refId": "A" }]
-        },
-        {
-          "id": 17,
-          "type": "stat",
-          "title": "Session Cost (since EC2 boot)",
-          "description": "Total cost since last EC2 start",
-          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 39 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "currencyUSD",
-              "decimals": 3,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 1 },
-                  { "color": "red", "value": 5 }
-                ]
               }
             }
           },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
-          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Cost $", "refId": "A" }]
-        },
-        {
-          "id": 18,
-          "type": "stat",
-          "title": "Daily Projected Cost",
-          "description": "Estimated cost if running 24 hours",
-          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 39 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "currencyUSD",
-              "decimals": 2,
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
-            }
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "auto",
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true
           },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
-          "targets": [{ "expr": "finops:ec2_daily_cost_usd", "legendFormat": "$/day", "refId": "A" }]
+          "targets": [{
+            "expr": "finops:cpu_utilization_24h",
+            "legendFormat": "CPU %",
+            "refId": "A"
+          }]
         },
-        {
-          "id": 19,
-          "type": "stat",
-          "title": "Monthly Projected Cost",
-          "description": "Estimated cost if running entire month (730 hours)",
-          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 39 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "currencyUSD",
-              "decimals": 2,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 25 },
-                  { "color": "red", "value": 50 }
-                ]
-              }
-            }
-          },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
-          "targets": [{ "expr": "finops:ec2_monthly_cost_usd", "legendFormat": "$/month", "refId": "A" }]
-        },
-        {
-          "id": 20,
-          "type": "timeseries",
-          "title": "Cumulative Session Cost Over Time ($)",
-          "description": "Running total cost since EC2 started",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 43 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "currencyUSD",
-              "decimals": 3,
-              "color": { "mode": "fixed", "fixedColor": "green" },
-              "custom": { "lineWidth": 2, "fillOpacity": 20 }
-            }
-          },
-          "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } },
-          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Cumulative Cost $", "refId": "A" }]
-        },
+
         {
           "id": 3,
-          "type": "stat",
-          "title": "RAM Utilization (24h avg)",
-          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+          "type": "gauge",
+          "title": "RAM Usage",
+          "description": "Real-time RAM utilization across all nodes",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
           "fieldConfig": {
             "defaults": {
               "unit": "percent",
               "min": 0,
               "max": 100,
+              "decimals": 1,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -178,25 +85,30 @@ data:
               }
             }
           },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
-          "targets": [
-            {
-              "expr": "finops:ram_utilization_24h",
-              "legendFormat": "RAM %",
-              "refId": "A"
-            }
-          ]
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true
+          },
+          "targets": [{
+            "expr": "finops:ram_utilization_24h",
+            "legendFormat": "RAM %",
+            "refId": "A"
+          }]
         },
+
         {
           "id": 4,
-          "type": "stat",
-          "title": "Disk Utilization",
-          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+          "type": "gauge",
+          "title": "Disk Usage",
+          "description": "Real-time disk utilization",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
           "fieldConfig": {
             "defaults": {
               "unit": "percent",
               "min": 0,
               "max": 100,
+              "decimals": 1,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -207,268 +119,47 @@ data:
               }
             }
           },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
-          "targets": [
-            {
-              "expr": "finops:disk_utilization",
-              "legendFormat": "Disk %",
-              "refId": "A"
-            }
-          ]
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true
+          },
+          "targets": [{
+            "expr": "finops:disk_utilization",
+            "legendFormat": "Disk %",
+            "refId": "A"
+          }]
         },
+
         {
           "id": 5,
-          "type": "stat",
-          "title": "Total RAM",
-          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "GB",
-              "decimals": 1,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [{ "color": "blue", "value": null }]
-              }
-            }
-          },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
-          "targets": [
-            {
-              "expr": "finops:total_ram_gb",
-              "legendFormat": "RAM GB",
-              "refId": "A"
-            }
-          ]
+          "type": "row",
+          "title": "Cost Breakdown — Based on Actual Usage",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+          "collapsed": false
         },
+
         {
           "id": 6,
-          "type": "row",
-          "title": "📈 Resource Trends (Last 7 Days)",
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
-          "collapsed": false
+          "type": "stat",
+          "title": "Instance Type",
+          "description": "ap-south-1 (Mumbai) | On-Demand | Linux",
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 10 },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [{ "type": "value", "options": { "0.0416": { "text": "t3.medium" } } }],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "name", "graphMode": "none" },
+          "targets": [{ "expr": "finops:ec2_hourly_cost_usd", "legendFormat": "t3.medium | 2vCPU | 4GB | ap-south-1", "refId": "A" }]
         },
+
         {
           "id": 7,
-          "type": "timeseries",
-          "title": "CPU Usage Trend",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "min": 0,
-              "max": 100,
-              "color": { "mode": "palette-classic" },
-              "custom": { "lineWidth": 2, "fillOpacity": 10 }
-            }
-          },
-          "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } },
-          "targets": [
-            {
-              "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-              "legendFormat": "CPU Usage %",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "id": 8,
-          "type": "timeseries",
-          "title": "RAM Usage Trend",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "min": 0,
-              "max": 100,
-              "color": { "mode": "palette-classic" },
-              "custom": { "lineWidth": 2, "fillOpacity": 10 }
-            }
-          },
-          "targets": [
-            {
-              "expr": "avg((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)",
-              "legendFormat": "RAM Usage %",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "id": 9,
-          "type": "row",
-          "title": "🔮 Capacity Forecasting (Next 14 Days)",
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
-          "collapsed": false
-        },
-        {
-          "id": 10,
-          "type": "timeseries",
-          "title": "RAM Forecast — Will it run out?",
-          "description": "Uses predict_linear() to forecast RAM usage for next 14 days based on 7 day trend",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "min": 0,
-              "max": 100,
-              "custom": { "lineWidth": 2, "fillOpacity": 10 }
-            }
-          },
-          "targets": [
-            {
-              "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
-              "legendFormat": "Actual RAM %",
-              "refId": "A"
-            },
-            {
-              "expr": "(1 - ((node_memory_MemAvailable_bytes + predict_linear(node_memory_MemAvailable_bytes[7d], 14*24*3600)) / node_memory_MemTotal_bytes / 2)) * 100",
-              "legendFormat": "Predicted RAM % (14d)",
-              "refId": "B"
-            }
-          ]
-        },
-        {
-          "id": 11,
-          "type": "timeseries",
-          "title": "Disk Forecast — When will it fill up?",
-          "description": "Uses predict_linear() to forecast disk usage for next 14 days based on 7 day trend",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "min": 0,
-              "max": 100,
-              "custom": { "lineWidth": 2, "fillOpacity": 10 }
-            }
-          },
-          "targets": [
-            {
-              "expr": "finops:disk_utilization",
-              "legendFormat": "Actual Disk %",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "id": 12,
-          "type": "row",
-          "title": "💰 EC2 Instance Cost Comparison",
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
-          "collapsed": false
-        },
-        {
-          "id": 13,
-          "type": "table",
-          "title": "EC2 Instance Pricing vs Your Usage (us-west-2, On-Demand, Linux)",
-          "description": "Compare your actual resource usage against EC2 instance types to find the most cost-effective option",
-          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
-          "fieldConfig": {
-            "defaults": { "custom": { "align": "auto" } },
-            "overrides": [
-              {
-                "matcher": { "id": "byName", "options": "Monthly Cost" },
-                "properties": [{ "id": "unit", "value": "currencyUSD" }]
-              },
-              {
-                "matcher": { "id": "byName", "options": "Status" },
-                "properties": [
-                  {
-                    "id": "custom.displayMode",
-                    "value": "color-background"
-                  },
-                  {
-                    "id": "mappings",
-                    "value": [
-                      { "type": "value", "options": { "✅ Recommended": { "color": "green", "index": 0 } } },
-                      { "type": "value", "options": { "⚠️ Current": { "color": "blue", "index": 1 } } },
-                      { "type": "value", "options": { "❌ Too Small": { "color": "red", "index": 2 } } }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "options": { "showHeader": true, "footer": { "show": false } },
-          "targets": [
-            {
-              "expr": "vector(8.47)",
-              "legendFormat": "t2.micro | 1 vCPU | 1 GB RAM | $8.47/mo",
-              "refId": "A",
-              "instant": true
-            }
-          ],
-          "transformations": [
-            {
-              "id": "merge",
-              "options": {}
-            }
-          ],
-          "plugin": "table"
-        },
-        {
-          "id": 14,
-          "type": "stat",
-          "title": "💡 Cost Saving Tip",
-          "description": "If 7-day avg CPU < 20% and RAM < 40% → downgrade instance",
-          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 34 },
-          "fieldConfig": {
-            "defaults": {
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 80 }
-                ]
-              },
-              "mappings": [
-                {
-                  "type": "range",
-                  "options": {
-                    "from": 0,
-                    "to": 20,
-                    "result": { "text": "💚 Under-utilized — Consider downgrading instance to save cost", "color": "green" }
-                  }
-                },
-                {
-                  "type": "range",
-                  "options": {
-                    "from": 20,
-                    "to": 75,
-                    "result": { "text": "✅ Well utilized — Current instance is right-sized", "color": "blue" }
-                  }
-                },
-                {
-                  "type": "range",
-                  "options": {
-                    "from": 75,
-                    "to": 100,
-                    "result": { "text": "🔴 Over-utilized — Consider upgrading instance to avoid performance issues", "color": "red" }
-                  }
-                }
-              ]
-            }
-          },
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "value" },
-          "targets": [
-            {
-              "expr": "finops:cpu_utilization_24h",
-              "legendFormat": "CPU %",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "id": 15,
-          "type": "row",
-          "title": "AWS Cost Estimation (t3.medium ap-south-1)",
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
-          "collapsed": false
-        },
-        {
-          "id": 16,
           "type": "stat",
           "title": "Hourly Rate",
-          "description": "t3.medium on-demand price in ap-south-1 (Mumbai)",
-          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 39 },
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 10 },
           "fieldConfig": {
             "defaults": {
               "unit": "currencyUSD",
@@ -477,14 +168,15 @@ data:
             }
           },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
-          "targets": [{ "expr": "finops:ec2_hourly_cost_usd", "legendFormat": "$/hr", "refId": "A" }]
+          "targets": [{ "expr": "finops:ec2_hourly_cost_usd", "legendFormat": "Per Hour", "refId": "A" }]
         },
+
         {
-          "id": 17,
+          "id": 8,
           "type": "stat",
-          "title": "Session Cost (since EC2 boot)",
-          "description": "Total cost since last EC2 start",
-          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 39 },
+          "title": "Cost This Session",
+          "description": "Total cost since EC2 was started",
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 10 },
           "fieldConfig": {
             "defaults": {
               "unit": "currencyUSD",
@@ -500,14 +192,14 @@ data:
             }
           },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
-          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Cost $", "refId": "A" }]
+          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Session $", "refId": "A" }]
         },
+
         {
-          "id": 18,
+          "id": 9,
           "type": "stat",
-          "title": "Daily Projected Cost",
-          "description": "Estimated cost if running 24 hours",
-          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 39 },
+          "title": "Daily Projected",
+          "gridPos": { "h": 4, "w": 4, "x": 12, "y": 10 },
           "fieldConfig": {
             "defaults": {
               "unit": "currencyUSD",
@@ -516,14 +208,14 @@ data:
             }
           },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
-          "targets": [{ "expr": "finops:ec2_daily_cost_usd", "legendFormat": "$/day", "refId": "A" }]
+          "targets": [{ "expr": "finops:ec2_daily_cost_usd", "legendFormat": "Per Day", "refId": "A" }]
         },
+
         {
-          "id": 19,
+          "id": 10,
           "type": "stat",
-          "title": "Monthly Projected Cost",
-          "description": "Estimated cost if running entire month (730 hours)",
-          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 39 },
+          "title": "Monthly Projected",
+          "gridPos": { "h": 4, "w": 4, "x": 16, "y": 10 },
           "fieldConfig": {
             "defaults": {
               "unit": "currencyUSD",
@@ -539,14 +231,157 @@ data:
             }
           },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
-          "targets": [{ "expr": "finops:ec2_monthly_cost_usd", "legendFormat": "$/month", "refId": "A" }]
+          "targets": [{ "expr": "finops:ec2_monthly_cost_usd", "legendFormat": "Per Month", "refId": "A" }]
         },
+
         {
-          "id": 20,
+          "id": 11,
+          "type": "stat",
+          "title": "Effective Cost (What You Use)",
+          "description": "Cost of resources you actually consume: hourly_rate x avg_utilization",
+          "gridPos": { "h": 4, "w": 4, "x": 20, "y": 10 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 4,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{ "color": "green", "value": null }]
+              }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{
+            "expr": "0.0416 * ((finops:cpu_utilization_24h / 100 * 0.5) + (finops:ram_utilization_24h / 100 * 0.5))",
+            "legendFormat": "Effective $/hr",
+            "refId": "A"
+          }]
+        },
+
+        {
+          "id": 12,
+          "type": "row",
+          "title": "Cost vs Waste — Are You Right-Sized?",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+          "collapsed": false
+        },
+
+        {
+          "id": 13,
+          "type": "bargauge",
+          "title": "Cost Efficiency — Used vs Wasted",
+          "description": "Green = money you get value from. Red = money wasted on idle resources.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 4,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 0.02 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          },
+          "targets": [
+            {
+              "expr": "0.0416 * ((finops:cpu_utilization_24h / 100 * 0.5) + (finops:ram_utilization_24h / 100 * 0.5))",
+              "legendFormat": "Cost Used (Value)",
+              "refId": "A"
+            },
+            {
+              "expr": "0.0416 * (1 - ((finops:cpu_utilization_24h / 100 * 0.5) + (finops:ram_utilization_24h / 100 * 0.5)))",
+              "legendFormat": "Cost Wasted (Idle)",
+              "refId": "B"
+            }
+          ]
+        },
+
+        {
+          "id": 14,
+          "type": "bargauge",
+          "title": "Resource Utilization vs Capacity",
+          "description": "How much of your t3.medium (2vCPU 4GB) you are actually using",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 60 },
+                  { "color": "red", "value": 85 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          },
+          "targets": [
+            { "expr": "finops:cpu_utilization_24h", "legendFormat": "CPU Used %", "refId": "A" },
+            { "expr": "finops:ram_utilization_24h", "legendFormat": "RAM Used %", "refId": "B" },
+            { "expr": "finops:disk_utilization", "legendFormat": "Disk Used %", "refId": "C" }
+          ]
+        },
+
+        {
+          "id": 15,
+          "type": "row",
+          "title": "Trends",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+          "collapsed": false
+        },
+
+        {
+          "id": 16,
           "type": "timeseries",
-          "title": "Cumulative Session Cost Over Time ($)",
-          "description": "Running total cost since EC2 started",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 43 },
+          "title": "CPU and RAM Usage Over Time",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "custom": { "lineWidth": 2, "fillOpacity": 10 }
+            }
+          },
+          "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "targets": [
+            {
+              "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+              "legendFormat": "CPU %",
+              "refId": "A"
+            },
+            {
+              "expr": "avg(100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100))",
+              "legendFormat": "RAM %",
+              "refId": "B"
+            }
+          ]
+        },
+
+        {
+          "id": 17,
+          "type": "timeseries",
+          "title": "Cumulative Cost This Session ($)",
+          "description": "Running dollar cost since EC2 started",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
           "fieldConfig": {
             "defaults": {
               "unit": "currencyUSD",
@@ -556,7 +391,58 @@ data:
             }
           },
           "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } },
-          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Cumulative Cost $", "refId": "A" }]
+          "targets": [{
+            "expr": "finops:ec2_session_cost_usd",
+            "legendFormat": "Total Cost $",
+            "refId": "A"
+          }]
+        },
+
+        {
+          "id": 18,
+          "type": "row",
+          "title": "Right-Sizing Recommendation",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+          "collapsed": false
+        },
+
+        {
+          "id": 19,
+          "type": "stat",
+          "title": "Right-Sizing Advice",
+          "description": "Based on current CPU utilization",
+          "gridPos": { "h": 5, "w": 24, "x": 0, "y": 33 },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "range",
+                  "options": {
+                    "from": 0, "to": 15,
+                    "result": { "text": "UNDER-UTILIZED: CPU below 15% — Consider downgrading to t3.small ($15/mo) and save ~$15/month", "color": "orange" }
+                  }
+                },
+                {
+                  "type": "range",
+                  "options": {
+                    "from": 15, "to": 70,
+                    "result": { "text": "RIGHT-SIZED: Usage is healthy — t3.medium ($30/mo) is the correct choice for your workload", "color": "green" }
+                  }
+                },
+                {
+                  "type": "range",
+                  "options": {
+                    "from": 70, "to": 100,
+                    "result": { "text": "OVER-UTILIZED: CPU above 70% — Consider upgrading to t3.large ($60/mo) to avoid performance issues", "color": "red" }
+                  }
+                }
+              ],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "value", "graphMode": "none" },
+          "targets": [{ "expr": "finops:cpu_utilization_24h", "legendFormat": "", "refId": "A" }]
         }
+
       ]
     }
