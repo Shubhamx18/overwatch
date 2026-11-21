@@ -57,6 +57,108 @@ data:
           ]
         },
         {
+          "id": 15,
+          "type": "row",
+          "title": "AWS Cost Estimation (t3.medium ap-south-1)",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
+          "collapsed": false
+        },
+        {
+          "id": 16,
+          "type": "stat",
+          "title": "Hourly Rate",
+          "description": "t3.medium on-demand price in ap-south-1 (Mumbai)",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 39 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 4,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{ "expr": "finops:ec2_hourly_cost_usd", "legendFormat": "$/hr", "refId": "A" }]
+        },
+        {
+          "id": 17,
+          "type": "stat",
+          "title": "Session Cost (since EC2 boot)",
+          "description": "Total cost since last EC2 start",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 39 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 3,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Cost $", "refId": "A" }]
+        },
+        {
+          "id": 18,
+          "type": "stat",
+          "title": "Daily Projected Cost",
+          "description": "Estimated cost if running 24 hours",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 39 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{ "expr": "finops:ec2_daily_cost_usd", "legendFormat": "$/day", "refId": "A" }]
+        },
+        {
+          "id": 19,
+          "type": "stat",
+          "title": "Monthly Projected Cost",
+          "description": "Estimated cost if running entire month (730 hours)",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 39 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 25 },
+                  { "color": "red", "value": 50 }
+                ]
+              }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{ "expr": "finops:ec2_monthly_cost_usd", "legendFormat": "$/month", "refId": "A" }]
+        },
+        {
+          "id": 20,
+          "type": "timeseries",
+          "title": "Cumulative Session Cost Over Time ($)",
+          "description": "Running total cost since EC2 started",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 43 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 3,
+              "color": { "mode": "fixed", "fixedColor": "green" },
+              "custom": { "lineWidth": 2, "fillOpacity": 20 }
+            }
+          },
+          "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Cumulative Cost $", "refId": "A" }]
+        },
+        {
           "id": 3,
           "type": "stat",
           "title": "RAM Utilization (24h avg)",
@@ -353,6 +455,108 @@ data:
               "refId": "A"
             }
           ]
+        },
+        {
+          "id": 15,
+          "type": "row",
+          "title": "AWS Cost Estimation (t3.medium ap-south-1)",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
+          "collapsed": false
+        },
+        {
+          "id": 16,
+          "type": "stat",
+          "title": "Hourly Rate",
+          "description": "t3.medium on-demand price in ap-south-1 (Mumbai)",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 39 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 4,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{ "expr": "finops:ec2_hourly_cost_usd", "legendFormat": "$/hr", "refId": "A" }]
+        },
+        {
+          "id": 17,
+          "type": "stat",
+          "title": "Session Cost (since EC2 boot)",
+          "description": "Total cost since last EC2 start",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 39 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 3,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Cost $", "refId": "A" }]
+        },
+        {
+          "id": 18,
+          "type": "stat",
+          "title": "Daily Projected Cost",
+          "description": "Estimated cost if running 24 hours",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 39 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{ "expr": "finops:ec2_daily_cost_usd", "legendFormat": "$/day", "refId": "A" }]
+        },
+        {
+          "id": 19,
+          "type": "stat",
+          "title": "Monthly Projected Cost",
+          "description": "Estimated cost if running entire month (730 hours)",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 39 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 25 },
+                  { "color": "red", "value": 50 }
+                ]
+              }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "auto" },
+          "targets": [{ "expr": "finops:ec2_monthly_cost_usd", "legendFormat": "$/month", "refId": "A" }]
+        },
+        {
+          "id": 20,
+          "type": "timeseries",
+          "title": "Cumulative Session Cost Over Time ($)",
+          "description": "Running total cost since EC2 started",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 43 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 3,
+              "color": { "mode": "fixed", "fixedColor": "green" },
+              "custom": { "lineWidth": 2, "fillOpacity": 20 }
+            }
+          },
+          "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+          "targets": [{ "expr": "finops:ec2_session_cost_usd", "legendFormat": "Cumulative Cost $", "refId": "A" }]
         }
       ]
     }
