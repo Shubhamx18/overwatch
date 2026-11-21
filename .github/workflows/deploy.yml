@@ -1,4 +1,4 @@
-name: CI/CD — Overwatch Observability Stack
+name: CI/CD - Overwatch Observability Stack
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
 jobs:
   # ─── Job 1: Lint & Validate ────────────────────────────────────
   lint-and-validate:
-    name: Lint & Validate
+    name: Lint and Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -33,7 +33,7 @@ jobs:
             kubectl apply --dry-run=client -f k8s/blackbox-exporter/
             echo "=== All manifests are valid ==="
 
-      - name: Validate Terraform
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.0
@@ -56,7 +56,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Trivy - Scan for vulnerabilities in configs
+      - name: Trivy - Scan configs for vulnerabilities
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
@@ -71,14 +71,14 @@ jobs:
           working_directory: terraform-aws/
           soft_fail: true
 
-      - name: Checkov - K8s security scan
+      - name: Checkov - Kubernetes security scan
         uses: bridgecrewio/checkov-action@master
         with:
           directory: k8s/
           framework: kubernetes
           soft_fail: true
 
-  # ─── Job 3: Deploy to Kind (Integration Test) ──────────────────
+  # ─── Job 3: Integration Test on Kind ───────────────────────────
   integration-test:
     name: Integration Test on Kind
     runs-on: ubuntu-latest
@@ -117,14 +117,24 @@ jobs:
           kubectl port-forward svc/prometheus 9090:9090 -n monitoring &
           sleep 5
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9090/-/ready)
-          if [ "$STATUS" = "200" ]; then echo "✅ Prometheus is healthy"; else echo "❌ Prometheus is NOT healthy"; exit 1; fi
+          if [ "$STATUS" = "200" ]; then
+            echo "PASS - Prometheus is healthy"
+          else
+            echo "FAIL - Prometheus is NOT healthy"
+            exit 1
+          fi
 
       - name: Verify Grafana is running
         run: |
           kubectl port-forward svc/grafana 3000:3000 -n monitoring &
           sleep 5
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health)
-          if [ "$STATUS" = "200" ]; then echo "✅ Grafana is healthy"; else echo "❌ Grafana is NOT healthy"; exit 1; fi
+          if [ "$STATUS" = "200" ]; then
+            echo "PASS - Grafana is healthy"
+          else
+            echo "FAIL - Grafana is NOT healthy"
+            exit 1
+          fi
 
       - name: Print pod status
         if: always()
@@ -164,7 +174,7 @@ jobs:
             kubectl apply -f k8s/node-exporter/
             kubectl apply -f k8s/kube-state-metrics/
             kubectl apply -f k8s/blackbox-exporter/
-            echo "✅ Deployment complete!"
+            echo "Deployment complete!"
             kubectl get pods -n monitoring
 
       - name: Notify Slack on success
@@ -173,7 +183,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "✅ *Overwatch Stack Deployed Successfully!*\nBranch: `main`\nCommit: `${{ github.sha }}`\nBy: ${{ github.actor }}"
+              "text": "SUCCESS: Overwatch Stack Deployed\nBranch: main\nCommit: ${{ github.sha }}\nBy: ${{ github.actor }}"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -184,7 +194,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "❌ *Overwatch Stack Deployment FAILED!*\nBranch: `main`\nCommit: `${{ github.sha }}`\nBy: ${{ github.actor }}\nCheck: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              "text": "FAILED: Overwatch Stack Deployment Failed\nBranch: main\nCommit: ${{ github.sha }}\nBy: ${{ github.actor }}\nLogs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
