@@ -2,12 +2,10 @@
 
 # OVERWATCH
 
-### Your Kubernetes cluster, under constant watch.
+### Kubernetes monitoring, alerting and FinOps on AWS
 
-**See what is happening. Get alerted when it breaks. Know what it costs.**
-One `terraform apply` builds the whole thing. Every `git push` keeps it current.
-
-<br>
+See what is happening. Get alerted when it breaks. Know what it costs.
+One `terraform apply` builds it. Every `git push` updates it.
 
 [![CI/CD](https://github.com/Shubhamx18/overwatch/actions/workflows/deploy.yml/badge.svg)](https://github.com/Shubhamx18/overwatch/actions/workflows/deploy.yml)
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?logo=prometheus&logoColor=white)
@@ -17,85 +15,59 @@ One `terraform apply` builds the whole thing. Every `git push` keeps it current.
 ![AWS](https://img.shields.io/badge/AWS-232F3E?logo=amazonaws&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
 
-<br>
-
 <img src="https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/grafana-kubernetes-cluster.png" alt="Overwatch Kubernetes cluster dashboard" width="900">
 
 </div>
-
-<br>
-
-| Setup time | Runs on | Monitors | Deployed by |
-|:---:|:---:|:---:|:---:|
-| **~30 minutes** | **1 EC2 server**<br>t3.medium, Mumbai | **Nodes, pods, URLs, cost** | **Terraform + GitHub Actions** |
 
 ---
 
 ## Contents
 
-1. [Why Overwatch](#1-why-overwatch)
+1. [Overview](#1-overview)
 2. [Quick Start](#2-quick-start)
 3. [How It Works](#3-how-it-works)
-4. [Your Credentials Kit](#4-your-credentials-kit)
-5. [Full Setup Walkthrough](#5-full-setup-walkthrough)
-6. [Take It for a Spin](#6-take-it-for-a-spin)
-7. [Screenshot Tour](#7-screenshot-tour)
-8. [FinOps: Know What It Costs](#8-finops-know-what-it-costs)
-9. [CI/CD: Push and Forget](#9-cicd-push-and-forget)
-10. [Daily Operations](#10-daily-operations)
+4. [Credentials](#4-credentials)
+5. [Setup](#5-setup)
+6. [Verify](#6-verify)
+7. [Screenshots](#7-screenshots)
+8. [FinOps](#8-finops)
+9. [CI/CD](#9-cicd)
+10. [Operations](#10-operations)
 11. [Troubleshooting](#11-troubleshooting)
-12. [Security Checklist](#12-security-checklist)
-13. [Why It Is Built This Way](#13-why-it-is-built-this-way)
+12. [Security](#12-security)
+13. [Design Notes](#13-design-notes)
 14. [Project Structure](#14-project-structure)
-15. [Glossary](#15-glossary)
-16. [Roadmap](#16-roadmap)
+15. [Roadmap](#15-roadmap)
 
 ---
 
-## 1. Why Overwatch
+## 1. Overview
 
-Servers do not crash loudly. They go quiet.
+Overwatch is a monitoring stack that runs on a Kubernetes ([kind](https://kind.sigs.k8s.io/)) cluster on one AWS EC2 server. It answers three questions:
 
-> Without monitoring, you learn about an outage **from an angry user**, and you learn about wasted cloud spend **from the bill**.
-
-Overwatch is a complete observability stack that fixes both. Three questions, three answers:
-
-| You ask | Overwatch answers with | Where you see it |
+| Question | Answered by | Where |
 |---|---|---|
-| **"Is my cluster healthy?"** | Live metrics from every node and pod | Grafana dashboards |
-| **"Will I know when something breaks?"** | Smart alert routing and de-duplication | Alertmanager |
-| **"What is this costing me?"** | Utilization vs. cost, per hour, day and month | FinOps dashboard |
+| Is my cluster healthy? | Prometheus metrics | Grafana dashboards |
+| Will I know when something breaks? | Alertmanager | Alertmanager UI |
+| What is this costing me? | FinOps recording rules | FinOps dashboard |
 
-And nothing is clicked together by hand. It is all code:
+Everything is code: **Terraform** builds the server, **Kubernetes manifests** define the stack, and **GitHub Actions** tests and deploys every push to `main`.
 
-- **Terraform** builds the server and its firewall.
-- **Kubernetes manifests** define every monitoring component.
-- **GitHub Actions** tests and deploys each push to `main`.
-
-<details>
-<summary><b>See the full feature list</b></summary>
-
-<br>
-
-- **Cluster monitoring**: nodes, pods and Kubernetes objects scraped by Prometheus
-- **Auto-provisioned dashboards**: Grafana loads the main dashboards on startup
-- **Smart alerting**: Alertmanager routing and inhibition rules
-- **Uptime and SSL checks**: websites probed with Blackbox Exporter
-- **FinOps dashboard**: CPU, RAM and disk utilization plus EC2 cost projections
-- **Infrastructure as Code**: EC2, security group and default VPC detection with Terraform
-- **Zero-touch boot**: the server installs Docker, kind and kubectl, then deploys the stack by itself
-- **CI/CD**: manifest validation, an integration test on a throwaway kind cluster, automatic deployment
-
-</details>
+| | |
+|---|---|
+| **Setup time** | About 30 minutes |
+| **Runs on** | One EC2 `t3.medium` in `ap-south-1` (Mumbai) |
+| **You need** | An AWS account, a GitHub account, a terminal |
+| **Cost** | EC2 is billed by the hour. Run `terraform destroy` when done |
 
 ---
 
 ## 2. Quick Start
 
-Already have an AWS access key, an EC2 key pair in `ap-south-1`, and Git, Terraform and the AWS CLI installed? Here is the whole thing:
+Already have an AWS access key, an EC2 key pair in `ap-south-1`, and Git, Terraform and the AWS CLI installed?
 
 ```bash
-aws configure                    # paste your keys, region: ap-south-1
+aws configure                    # your keys, region: ap-south-1
 git clone https://github.com/Shubhamx18/overwatch.git
 cd overwatch/terraform-aws/prometheus-stack
 
@@ -105,165 +77,65 @@ terraform init
 terraform apply                  # type "yes"
 ```
 
-Wait about 5 minutes, then open the URL Terraform printed: `http://<ec2_public_ip>:3000`
+After about 5 minutes, open `http://<ec2_public_ip>:3000`.
 
-That is it. **If any word in that block was unfamiliar, skip to the [Full Setup Walkthrough](#5-full-setup-walkthrough)**, which explains every step.
+New to any of this? Follow the [full setup](#5-setup).
 
 ---
 
 ## 3. How It Works
 
-### The idea in 20 seconds
+| Component | Job |
+|---|---|
+| **Node Exporter** | Reports CPU, RAM, disk and network of each node |
+| **kube-state-metrics** | Reports the state of pods and nodes |
+| **Blackbox Exporter** | Probes URLs for uptime and SSL expiry |
+| **Prometheus** | Collects metrics, evaluates alert and recording rules |
+| **Grafana** | Draws dashboards from Prometheus |
+| **Alertmanager** | Groups, routes and sends alerts |
 
-Picture a hospital ward.
+**The flow:** exporters publish metrics, Prometheus collects them, Grafana shows them, and Alertmanager handles alerts when a rule fires.
 
-| In the hospital | In Overwatch | What it does |
-|---|---|---|
-| Sensors on every patient | **Exporters** | Measure CPU, RAM, pods, website uptime |
-| The nurse writing down readings | **Prometheus** | Collects and stores every number |
-| The monitor above the bed | **Grafana** | Turns numbers into dashboards |
-| The alarm | **Alertmanager** | Rings when something looks wrong |
-
-### The architecture
-
-```mermaid
-flowchart TB
-    dev["You: git push"] --> gha["GitHub Actions<br/>validate, test, deploy"]
-    tf["Terraform"] -- creates --> ec2
-    gha -- SSH --> ec2
-
-    subgraph ec2["AWS EC2 · t3.medium · ap-south-1"]
-        subgraph kind["kind Kubernetes cluster · namespace: monitoring"]
-            ne["Node Exporter<br/>machine metrics"] --> prom["Prometheus<br/>stores + evaluates rules"]
-            ksm["kube-state-metrics<br/>pod and node metrics"] --> prom
-            bb["Blackbox Exporter<br/>URL + SSL checks"] --> prom
-            prom --> graf["Grafana<br/>dashboards"]
-            prom --> am["Alertmanager<br/>routes alerts"]
-        end
-    end
-
-    am --> notif["Notifications"]
-```
-
-### The life of an alert
-
-This is what happens in the background while you are not looking:
-
-```mermaid
-sequenceDiagram
-    participant N as Node Exporter
-    participant P as Prometheus
-    participant A as Alertmanager
-    participant Y as You
-
-    N->>P: CPU is at 97 percent
-    P->>P: Rule check - above threshold for 5 minutes?
-    P->>A: Fire the alert
-    A->>A: Group, de-duplicate, apply inhibition
-    A->>Y: Notify (Slack or email, on the roadmap)
-```
-
-### From zero to running
-
-| # | What happens | Who does it |
-|:---:|---|---|
-| 1 | The EC2 server and its firewall are created | **Terraform** |
-| 2 | The server installs Docker, kind and kubectl | **Boot script** |
-| 3 | It clones this repo and builds the Kubernetes cluster | **Boot script** |
-| 4 | It deploys the full monitoring stack | **Boot script** |
-| 5 | Exporters publish metrics, Prometheus collects them | Automatic |
-| 6 | Grafana draws them, Alertmanager watches them | Automatic |
-| 7 | Every `git push` redeploys the manifests | **GitHub Actions** |
-
-### Meet the components
-
-| Component | Its one job | Runs as |
-|---|---|---|
-| **Prometheus** | Collect and store metrics, evaluate rules | Deployment |
-| **Grafana** | Draw dashboards | Deployment |
-| **Alertmanager** | Route, group and send alerts | Deployment |
-| **Node Exporter** | Report CPU, RAM, disk and network | DaemonSet (one per node) |
-| **kube-state-metrics** | Report the state of pods and nodes | Deployment |
-| **Blackbox Exporter** | Probe URLs for uptime and SSL expiry | Deployment |
+**The build:** Terraform creates the EC2 server and firewall. On first boot, the server installs Docker, kind and kubectl, clones this repo, creates the cluster and deploys everything. After that, GitHub Actions redeploys on every push.
 
 > [!NOTE]
-> The kind "nodes" (a control plane plus workers) are Docker containers on the **same** EC2 machine. Every Node Exporter reports on that one machine, so all nodes show near-identical memory and load. That is expected, not a bug.
+> The kind nodes are Docker containers on the same EC2 machine, so every Node Exporter reports the same underlying host. Near-identical numbers across nodes are expected.
 
 ---
 
-## 4. Your Credentials Kit
+## 4. Credentials
 
-Overwatch needs a handful of keys and names. This section is the one place that lists **all** of them. Skim it now, and come back whenever you wonder "where did that go?"
+### 4.1 Everything you need to create
 
-### 4.1 The complete list
+| Name | What it is | Where to get it | Where it goes | Secret |
+|---|---|---|---|:---:|
+| **AWS Access Key ID** | AWS username | IAM → Users → *your user* → Security credentials → Create access key | `aws configure` and GitHub secret `AWS_ACCESS_KEY_ID` | Private |
+| **AWS Secret Access Key** | AWS password | Same screen (shown once) | `aws configure` and GitHub secret `AWS_SECRET_ACCESS_KEY` | Yes |
+| **AWS Region** | Where it is built | Fixed: `ap-south-1` | `aws configure` | No |
+| **Key pair name** | Label of your SSH key | EC2 → Key Pairs → Create key pair | `key_name` in `terraform.tfvars` | No |
+| **Key pair file (`.pem`)** | SSH private key (downloaded once) | Created with the key pair | Your computer and GitHub secret `PROD_SSH_KEY` | Yes |
+| **EC2 public IP** | Your server's address | `terraform output ec2_public_ip` | GitHub secret `PROD_SERVER_IP` | No |
+| **Grafana login** | Dashboard username and password | Grafana manifest under `k8s/grafana/` | Used at `http://<EC2-IP>:3000`. Change it on first login | Yes |
+| **GitHub environment** | Named deployment target | Settings → Environments → New environment | Name it `production` | No |
 
-| # | Name | What it is | Where you get it | Where it goes | Secret? |
-|:---:|---|---|---|---|:---:|
-| 1 | **AWS Access Key ID** | Your username for AWS | AWS Console → IAM → Users → *your user* → Security credentials → Create access key | `aws configure` **and** GitHub secret `AWS_ACCESS_KEY_ID` | Private |
-| 2 | **AWS Secret Access Key** | Your password for AWS | Same screen. **Shown only once** | `aws configure` **and** GitHub secret `AWS_SECRET_ACCESS_KEY` | **Yes** |
-| 3 | **AWS Region** | Where everything is built | Fixed value: `ap-south-1` | `aws configure` (default region) | No |
-| 4 | **Key pair name** | The label of your SSH key, such as `overwatch-key` | AWS Console → EC2 → Key Pairs → Create key pair | `key_name` in `terraform.tfvars` | No |
-| 5 | **Key pair file (`.pem`)** | Your SSH private key. **Downloaded only once** | Downloaded when you create the key pair | Your computer **and** GitHub secret `PROD_SSH_KEY` (whole file) | **Yes** |
-| 6 | **EC2 public IP** | The address of your server | `terraform output ec2_public_ip` | GitHub secret `PROD_SERVER_IP` | No, but it changes after a stop/start |
-| 7 | **Grafana login** | Username and password for dashboards | Defined in the Grafana manifest under `k8s/grafana/` | Used at `http://<EC2-IP>:3000`. **Change it on first login** | **Yes** |
-| 8 | **GitHub environment** | A named deployment target. Has no value | GitHub → Settings → Environments → New environment | Name it exactly `production` | No |
+The EC2 server stores no secrets. It has no IAM role, and your AWS keys stay on your computer and in GitHub.
 
-### 4.2 The map: what goes where
+### 4.2 GitHub secrets
 
-```mermaid
-flowchart LR
-    subgraph IAM["AWS IAM user"]
-        akid["Access Key ID"]
-        sak["Secret Access Key"]
-    end
-    subgraph EC2K["EC2 key pair"]
-        kname["Key pair name"]
-        pem[".pem file"]
-    end
-    ip["EC2 public IP<br/>from terraform output"]
+Only needed for [CI/CD](#9-cicd). Add them under **Settings → Secrets and variables → Actions → New repository secret**.
 
-    subgraph PC["Your computer"]
-        cli["aws configure<br/>(~/.aws/credentials)"]
-        tfv["terraform.tfvars<br/>key_name"]
-        ssh["ssh -i key.pem"]
-    end
-
-    subgraph GH["GitHub Secrets"]
-        s1["AWS_ACCESS_KEY_ID"]
-        s2["AWS_SECRET_ACCESS_KEY"]
-        s3["PROD_SSH_KEY"]
-        s4["PROD_SERVER_IP"]
-    end
-
-    akid --> cli
-    sak --> cli
-    akid --> s1
-    sak --> s2
-    kname --> tfv
-    pem --> ssh
-    pem --> s3
-    ip --> s4
-```
-
-> [!NOTE]
-> **Nothing secret lives on the EC2 server.** The instance has no IAM role, and your AWS keys stay on your computer and in GitHub.
-
-### 4.3 The four GitHub secrets
-
-Only needed for [CI/CD](#9-cicd-push-and-forget). Add them at **GitHub repo → Settings → Secrets and variables → Actions → New repository secret**.
-
-| Secret name (type it exactly) | What to paste | How to get it |
+| Secret name | Value | How to get it |
 |---|---|---|
-| `AWS_ACCESS_KEY_ID` | Your access key ID, like `AKIA...` | Saved when you created the access key |
-| `AWS_SECRET_ACCESS_KEY` | Your secret access key | Saved when you created the access key |
-| `PROD_SSH_KEY` | The **entire** `.pem` file, including the `-----BEGIN` and `-----END` lines | `cat overwatch-key.pem` (Mac/Linux) or `Get-Content .\overwatch-key.pem` (PowerShell) |
-| `PROD_SERVER_IP` | The server's public IP, like `3.110.113.96` | `terraform output ec2_public_ip` |
+| `AWS_ACCESS_KEY_ID` | Access key ID, like `AKIA...` | Saved when you created the key |
+| `AWS_SECRET_ACCESS_KEY` | Secret access key | Saved when you created the key |
+| `PROD_SSH_KEY` | The whole `.pem` file, including `-----BEGIN` and `-----END` lines | `cat overwatch-key.pem` (Mac/Linux) or `Get-Content .\overwatch-key.pem` (PowerShell) |
+| `PROD_SERVER_IP` | Server public IP, like `3.110.113.96` | `terraform output ec2_public_ip` |
 
-Then create one **environment**: **Settings → Environments → New environment → `production`**.
+Also create the environment: **Settings → Environments → New environment → `production`**.
 
-### 4.4 Keep secrets out of Git
+### 4.3 Keep secrets out of Git
 
-Put this in your `.gitignore` **before your first commit**:
+Add this to `.gitignore` before your first commit:
 
 ```gitignore
 *.pem
@@ -274,37 +146,15 @@ Put this in your `.gitignore` **before your first commit**:
 ```
 
 > [!IMPORTANT]
-> Never commit a `.pem` file, AWS keys, `.env`, or Terraform state. **If a key leaks:** IAM → Users → Security credentials → delete that access key → create a new one → update `aws configure` **and** both GitHub secrets.
+> If a key leaks: IAM → Users → Security credentials → delete the key → create a new one → update `aws configure` and both GitHub secrets.
 
 ---
 
-## 5. Full Setup Walkthrough
+## 5. Setup
 
-Ten phases, about 30 minutes. Each one ends with a **check**. If the check fails, stop and fix it before moving on.
+Each step ends with a **Check**. Fix any failure before moving on.
 
-```mermaid
-flowchart LR
-    p1["1. Tools"] --> p2["2. AWS"] --> p3["3. Connect"] --> p4["4. Code"] --> p5["5. Terraform"] --> p6["6. Boot wait"] --> p7["7. Open tools"] --> p8["8. Grafana"] --> p9["9. CI/CD"] --> p10["10. Lock down"]
-```
-
-### What is manual and what is not
-
-| You do (once) | Overwatch does (always) |
-|---|---|
-| Create an AWS account, IAM user and access key | Finds your default VPC and subnets |
-| Create an EC2 key pair, save the `.pem` | Creates the EC2 server and security group |
-| Install Git, Terraform and AWS CLI | Installs Docker, kind and kubectl on the server |
-| Run `aws configure` | Builds the Kubernetes cluster |
-| Put `key_name` in `terraform.tfvars` | Deploys Prometheus, Grafana, Alertmanager and exporters |
-| Run `terraform apply` | Loads the FinOps and Node Exporter dashboards |
-| Change the Grafana password | Computes cost and utilization metrics |
-| Add 4 GitHub secrets (CI/CD only) | Tests and deploys every push |
-
----
-
-### Phase 1: Tools &nbsp;&middot;&nbsp; 10 min
-
-**Goal:** get Git, Terraform and the AWS CLI onto your computer.
+### Step 1: Install tools (10 min)
 
 | Tool | Get it | Check with |
 |---|---|---|
@@ -312,30 +162,22 @@ flowchart LR
 | Terraform | https://developer.hashicorp.com/terraform/install | `terraform -version` |
 | AWS CLI v2 | https://aws.amazon.com/cli/ | `aws --version` |
 
-You also need an SSH client. macOS, Linux and Windows 10/11 (PowerShell) already have one.
+**Check:** all three print a version.
 
-> **Check:** all three commands print a version.
+### Step 2: Prepare AWS (10 min)
 
----
+**Create an access key**
 
-### Phase 2: Your AWS keys &nbsp;&middot;&nbsp; 10 min
+1. Go to **IAM → Users → Create user**.
+2. Attach the policy `AmazonEC2FullAccess` (enough for a demo).
+3. Open the user → **Security credentials → Create access key** → choose **CLI**.
+4. Copy the Access Key ID and Secret Access Key now. The secret is shown once.
 
-**Goal:** collect the two things Terraform needs from AWS: an **access key** and a **key pair**.
+**Create a key pair**
 
-#### 2.1 Create an IAM user and an access key
-
-1. Open **AWS Console → IAM → Users → Create user**.
-2. Attach the policy **`AmazonEC2FullAccess`** (enough for a demo).
-3. Open the new user → **Security credentials → Create access key**.
-4. Choose the use case **Command Line Interface (CLI)**.
-5. **Copy both values now.** The secret key is shown only once.
-
-#### 2.2 Create an EC2 key pair
-
-1. Switch the console region (top right) to **Asia Pacific (Mumbai) `ap-south-1`**.
-2. Go to **EC2 → Key Pairs → Create key pair**.
-3. Name it, for example `overwatch-key`. Choose **RSA** and **.pem**.
-4. Save the downloaded file somewhere safe, then lock it:
+1. Switch the console region to **Asia Pacific (Mumbai) `ap-south-1`**.
+2. Go to **EC2 → Key Pairs → Create key pair**. Name it (for example `overwatch-key`), choose **RSA** and **.pem**.
+3. Save the file, then lock it:
 
 ```bash
 # macOS / Linux
@@ -348,80 +190,59 @@ icacls .\overwatch-key.pem /inheritance:r /grant:r "$($env:USERNAME):R"
 ```
 
 > [!WARNING]
-> Key pairs belong to a **region**. A key made anywhere other than `ap-south-1` will not work here.
+> Key pairs are regional. A key made outside `ap-south-1` will not work.
 
-#### 2.3 Confirm a default VPC exists
+**Confirm a default VPC exists:** **VPC → Your VPCs** should show one with **Default VPC: Yes**. If not, use **Actions → Create default VPC**.
 
-Go to **VPC → Your VPCs**. One should say **Default VPC: Yes**. If not, choose **Actions → Create default VPC**.
+**Check:** you have an access key, a `.pem` file and a default VPC.
 
-> **Check:** you now hold an Access Key ID, a Secret Access Key, a `.pem` file, and a default VPC in `ap-south-1`.
-
----
-
-### Phase 3: Connect to AWS &nbsp;&middot;&nbsp; 1 min
-
-**Goal:** let your terminal act on your AWS account.
+### Step 3: Connect to AWS (1 min)
 
 ```bash
 aws configure
 ```
 
-| It asks | You type |
+| Prompt | Value |
 |---|---|
 | AWS Access Key ID | your access key ID |
 | AWS Secret Access Key | your secret access key |
 | Default region name | `ap-south-1` |
 | Default output format | `json` |
 
-Your keys are saved in `~/.aws/credentials` (Windows: `C:\Users\<you>\.aws\credentials`). Now test them:
+Keys are saved in `~/.aws/credentials` (Windows: `C:\Users\<you>\.aws\credentials`).
 
 ```bash
 aws sts get-caller-identity
 ```
 
-> **Check:** it prints your account ID and the IAM user's ARN. An error means the keys are wrong.
+**Check:** it prints your account ID and user ARN.
 
----
-
-### Phase 4: Get the code &nbsp;&middot;&nbsp; 1 min
-
-**Goal:** download Overwatch and tell it which SSH key to use.
+### Step 4: Get the code (1 min)
 
 ```bash
 git clone https://github.com/Shubhamx18/overwatch.git
 cd overwatch
 ```
 
-Open `terraform-aws/prometheus-stack/terraform.tfvars` and set your key pair **name** (no `.pem`):
+Edit `terraform-aws/prometheus-stack/terraform.tfvars` and set your key pair name (no `.pem`):
 
 ```hcl
-key_name = "overwatch-key"   # the name from AWS Console → EC2 → Key Pairs
+key_name = "overwatch-key"
 ```
 
 > [!NOTE]
-> **Using a fork?** The server's boot script clones the repo on its own. Change the repository URL in the user-data script inside `terraform-aws/modules/ec2/` so the server pulls **your** fork.
+> **Using a fork?** The boot script clones the repo itself. Change the repo URL in the user-data script under `terraform-aws/modules/ec2/` so the server pulls your fork.
 
-> **Check:** `terraform.tfvars` shows your key pair name.
-
----
-
-### Phase 5: Build the server &nbsp;&middot;&nbsp; 3 min
-
-**Goal:** let Terraform create the EC2 server and its firewall.
+### Step 5: Build the server (3 min)
 
 ```bash
 cd terraform-aws/prometheus-stack
-terraform init       # downloads the AWS provider
-terraform plan       # optional: preview what will be created
-terraform apply      # type "yes" when asked
+terraform init
+terraform plan       # optional preview
+terraform apply      # type "yes"
 ```
 
-It creates:
-
-- One **EC2 `t3.medium`** instance in `ap-south-1`
-- One **security group** opening ports `22`, `3000`, `9090`, `9093` and `9115`
-
-When it finishes, it prints:
+This creates one EC2 `t3.medium` instance and a security group opening ports `22`, `3000`, `9090`, `9093` and `9115`. It prints:
 
 ```
 ec2_public_ip = "X.X.X.X"
@@ -430,84 +251,50 @@ ssh_command   = "ssh -i <key>.pem ubuntu@X.X.X.X"
 ```
 
 > [!IMPORTANT]
-> **Save the IP.** You need it for every tool and for the `PROD_SERVER_IP` secret.
->
-> **Keep the `terraform.tfstate` file.** It is Terraform's memory of what it built. Lose it, and Terraform can no longer manage or destroy your server.
+> Save the IP. Keep `terraform.tfstate`: without it, Terraform cannot manage or destroy your server.
 
-> **Check:** the EC2 console shows the instance as **Running**.
+**Check:** the EC2 console shows the instance **Running**.
 
----
+### Step 6: Wait for first boot (5 min)
 
-### Phase 6: The server builds itself &nbsp;&middot;&nbsp; 5 min
-
-**Goal:** wait. The boot script does everything. You can watch it work:
+The server sets itself up: installs Docker, kind and kubectl, clones the repo, creates the cluster and deploys the stack. Watch progress:
 
 ```bash
 ssh -i overwatch-key.pem ubuntu@<EC2-IP> "tail -f /var/log/monitoring-setup.log"
 ```
 
-In order, it will:
-
-1. Install Docker, kind and kubectl
-2. Clone this repository
-3. Create the kind cluster
-4. Deploy every monitoring component
-
-When the log goes quiet, check the pods:
+Then check the pods:
 
 ```bash
 ssh -i overwatch-key.pem ubuntu@<EC2-IP> \
   "export KUBECONFIG=/home/ubuntu/.kube/config && kubectl get pods -n monitoring"
 ```
 
-You should see something like this (names and ages will differ):
+**Check:** 8 pods `Running` (alertmanager, blackbox-exporter, grafana, kube-state-metrics, prometheus, and one node-exporter per node).
 
-```
-NAME                                  READY   STATUS    RESTARTS   AGE
-alertmanager-xxxxxxxxxx-xxxxx         1/1     Running   0          4m
-blackbox-exporter-xxxxxxxxxx-xxxxx    1/1     Running   0          4m
-grafana-xxxxxxxxxx-xxxxx              1/1     Running   0          4m
-kube-state-metrics-xxxxxxxxxx-xxxxx   1/1     Running   0          4m
-node-exporter-xxxxx                   1/1     Running   0          4m
-node-exporter-xxxxx                   1/1     Running   0          4m
-node-exporter-xxxxx                   1/1     Running   0          4m
-prometheus-xxxxxxxxxx-xxxxx           1/1     Running   0          4m
-```
+### Step 7: Open the tools (1 min)
 
-> **Check:** **8 pods, all `Running`**: five single pods plus one node-exporter on each of the 3 nodes.
-
----
-
-### Phase 7: Open the tools &nbsp;&middot;&nbsp; 1 min
-
-**Goal:** see it live. Use `http://`, **not** `https://`.
+Use `http://`, not `https://`.
 
 | Tool | URL | Look for |
 |---|---|---|
-| **Grafana** | `http://<EC2-IP>:3000` | Your dashboards |
-| **Prometheus** | `http://<EC2-IP>:9090` | `/targets` with everything **UP** |
-| **Alertmanager** | `http://<EC2-IP>:9093` | Status **ready** |
-| **Blackbox Exporter** | `http://<EC2-IP>:9115` | Probe results |
+| Grafana | `http://<EC2-IP>:3000` | Dashboards |
+| Prometheus | `http://<EC2-IP>:9090` | `/targets` all **UP** |
+| Alertmanager | `http://<EC2-IP>:9093` | Status **ready** |
+| Blackbox Exporter | `http://<EC2-IP>:9115` | Probe results |
 
----
+### Step 8: Log in to Grafana (3 min)
 
-### Phase 8: Log in to Grafana &nbsp;&middot;&nbsp; 3 min
-
-**Goal:** get in, lock it down, find your dashboards.
-
-1. Open `http://<EC2-IP>:3000`.
-2. Log in with the credentials defined in the Grafana manifest under `k8s/grafana/`.
-3. **Change the password immediately:** profile icon → **Profile → Change password**.
-4. Open **Dashboards**. Two are already waiting for you:
-   - **FinOps: Cost Intelligence**
-   - **Node Exporter**
+1. Log in with the credentials from the Grafana manifest under `k8s/grafana/`.
+2. Change the password: profile icon → **Profile → Change password**.
+3. Open **Dashboards**. **FinOps: Cost Intelligence** and **Node Exporter** are already loaded.
 
 <details>
-<summary><b>Optional: import more community dashboards</b></summary>
+<summary>Optional: import community dashboards</summary>
 
 <br>
 
-Go to **Dashboards → New → Import**, type the ID, click **Load**, pick the **Prometheus** data source, click **Import**.
+**Dashboards → New → Import**, enter the ID, click **Load**, pick the **Prometheus** data source.
 
 | ID | Dashboard |
 |---|---|
@@ -518,20 +305,15 @@ Go to **Dashboards → New → Import**, type the ID, click **Load**, pick the *
 </details>
 
 > [!TIP]
-> A dashboard says **"No data"**? Look at the dropdowns at the top (Job, Instance, Nodename, cluster) and pick a value. The Node Exporter screenshots use **Job: `kubernetes-pods`**. A `cluster: None` dropdown on the Kubernetes dashboard is normal for a single cluster.
+> "No data"? Pick a value in the dropdowns at the top (Job, Instance, Nodename). The Node Exporter screenshots use **Job: `kubernetes-pods`**. `cluster: None` is normal for a single cluster.
 
-> **Check:** the FinOps dashboard shows live numbers.
+**Check:** the FinOps dashboard shows live numbers.
 
----
+### Step 9: Auto-deploy with CI/CD (optional, 5 min)
 
-### Phase 9: Auto-deploy with CI/CD &nbsp;&middot;&nbsp; 5 min
-
-**Goal:** make every `git push` redeploy by itself. **Optional.** Skip it if you only want to run the stack once.
-
-1. **Use your own GitHub repo.** Fork this one, or push your copy to a new repo.
-2. **Add the four secrets** from [section 4.3](#43-the-four-github-secrets): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `PROD_SSH_KEY`, `PROD_SERVER_IP`.
-3. **Create the environment** named `production` (Settings → Environments).
-4. **Push a change:**
+1. Fork this repo, or push your copy to a new GitHub repo.
+2. Add the four [GitHub secrets](#42-github-secrets) and the `production` environment.
+3. Push a change:
 
 ```bash
 git add .
@@ -539,34 +321,26 @@ git commit -m "first pipeline run"
 git push origin main
 ```
 
-> **Check:** the **Actions** tab shows three green stages: Validate, Integration Test, Deploy.
+**Check:** the **Actions** tab shows three green stages.
+
+### Step 10: Lock it down
+
+Work through the [Security checklist](#12-security) before leaving it running.
 
 ---
 
-### Phase 10: Lock it down &nbsp;&middot;&nbsp; 5 min
+## 6. Verify
 
-Before you walk away, work through the [Security Checklist](#12-security-checklist). Read the SSH warning there first, because it affects the pipeline.
-
----
-
-## 6. Take It for a Spin
-
-Do not just trust that it works. Prove it.
-
-### The health checklist
-
-| Check | How | You should see |
+| Check | How | Expected |
 |---|---|---|
-| Server is up | EC2 Console | State **Running** |
-| Pods are healthy | `kubectl get pods -n monitoring` | 8 pods `Running` |
-| Metrics are flowing | Prometheus → **Status → Targets** | Every target **UP** |
-| Dashboards are alive | Grafana → Dashboards | FinOps and Node Exporter show data |
-| Alerting is ready | Alertmanager → **Status** | Cluster status **ready** |
+| Server up | EC2 console | **Running** |
+| Pods healthy | `kubectl get pods -n monitoring` | 8 pods `Running` |
+| Metrics flowing | Prometheus → Status → Targets | All **UP** |
+| Dashboards alive | Grafana → Dashboards | Data in FinOps and Node Exporter |
+| Alerting ready | Alertmanager → Status | **ready** |
 | Pipeline works | GitHub → Actions | Three green stages |
 
-### Experiment 1: Send a fake alert
-
-Push an alert straight into Alertmanager:
+**Send a test alert:**
 
 ```bash
 curl -XPOST http://<EC2-IP>:9093/api/v2/alerts \
@@ -574,93 +348,43 @@ curl -XPOST http://<EC2-IP>:9093/api/v2/alerts \
   -d '[{"labels":{"alertname":"TestAlert","severity":"warning"}}]'
 ```
 
-Refresh the Alertmanager page. **`TestAlert` appears.**
-
-> [!NOTE]
-> Until you add a receiver (Slack or email, see the [Roadmap](#16-roadmap)), alerts show up in the UI but are not sent anywhere else.
-
-### Experiment 2: Break something on purpose
-
-Switch off kube-state-metrics, then watch Prometheus notice:
-
-```bash
-# 1. Break it
-ssh -i <key>.pem ubuntu@<EC2-IP> \
-  "export KUBECONFIG=/home/ubuntu/.kube/config && \
-   kubectl scale deployment kube-state-metrics --replicas=0 -n monitoring"
-
-# 2. Open http://<EC2-IP>:9090/targets and refresh.
-#    Its target should turn DOWN within a minute or so.
-
-# 3. Fix it
-ssh -i <key>.pem ubuntu@<EC2-IP> \
-  "export KUBECONFIG=/home/ubuntu/.kube/config && \
-   kubectl scale deployment kube-state-metrics --replicas=1 -n monitoring"
-```
-
-That is monitoring doing its job: something died, and you saw it.
+`TestAlert` should appear in Alertmanager. Until you add a receiver (Slack or email, see the [roadmap](#15-roadmap)), alerts show only in the UI.
 
 ---
 
-## 7. Screenshot Tour
+## 7. Screenshots
 
-A walk through the running stack, following the data from the machine up to the workloads.
-
-### Step 1: The server (AWS EC2)
-
-Terraform creates a `t3.medium` instance in `ap-south-1`, in the default VPC. Everything below runs on this one machine.
+**AWS EC2.** A `t3.medium` in `ap-south-1`. Everything runs on this one machine.
 
 ![AWS EC2 instance running the stack](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/aws-ec2-instance.png)
 
-### Step 2: Alerting (Alertmanager)
-
-Alertmanager reports `ready`. Prometheus sends alerts here, so you hear about trouble before your users do.
+**Alertmanager.** Status `ready`. Prometheus sends alerts here.
 
 ![Alertmanager status](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/alertmanager-status.png)
 
-### Step 3: The whole cluster (Grafana)
-
-How much of the cluster's pod, CPU and memory capacity is already requested by workloads. This is where right-sizing starts.
+**Cluster overview.** How much pod, CPU and memory capacity is already requested. The starting point for right-sizing.
 
 ![Kubernetes cluster requests and capacity](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/grafana-kubernetes-cluster.png)
 
-### Step 4: One node up close (Node Exporter)
-
-A single node at a glance: CPU busy, system load, RAM and swap used, pressure, core count, total RAM and uptime.
+**Node view.** CPU busy, system load, RAM and swap used, pressure, uptime.
 
 ![Node Exporter quick CPU, memory and disk view](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-capacity-forecast.png)
 
-### Step 5: Resource utilization (FinOps dashboard)
-
-Load, memory, disk I/O and the most memory-hungry pods over time. Low usage next to a steady cost is the signature of an over-provisioned resource.
+**Resource utilization.** Load, memory, disk I/O and the most memory-hungry pods over time.
 
 ![FinOps resource utilization](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-resource-utilization.png)
 
-### Step 6: The workloads (pod and node health)
-
-Running pods, restarts, CPU idle and node storage, all in one glance.
+**Pod and node health.** Running pods, restarts, CPU idle and node storage.
 
 ![Pod and node health](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-pod-node-health.png)
 
-> [!TIP]
-> Every view above reads the same Prometheus data. Only the zoom level changes.
-
 ---
 
-## 8. FinOps: Know What It Costs
+## 8. FinOps
 
-Most monitoring tells you what is running. Overwatch also tells you **what that costs**.
+Prometheus recording rules pre-compute these metrics every 15 seconds, so dashboards load instantly.
 
-Prometheus **recording rules** pre-compute the numbers every 15 seconds, so dashboards open instantly instead of crunching data on every refresh.
-
-### The rule of thumb
-
-> **Low utilization + steady cost = over-provisioned.**
-> That gap is where the savings are.
-
-### What gets measured
-
-**Utilization**
+> **Low utilization with steady cost means over-provisioned.** That gap is where the savings are.
 
 | Metric | Meaning |
 |---|---|
@@ -668,45 +392,33 @@ Prometheus **recording rules** pre-compute the numbers every 15 seconds, so dash
 | `finops:ram_utilization_24h` | Current RAM usage % |
 | `finops:disk_utilization` | Current disk usage % |
 | `finops:total_ram_gb` | Total RAM in GB |
-
-**Cost**
-
-| Metric | Meaning |
-|---|---|
 | `finops:ec2_hourly_cost_usd` | EC2 cost per hour (t3.medium, ap-south-1) |
 | `finops:ec2_session_cost_usd` | Cost since the instance booted |
 | `finops:ec2_daily_cost_usd` | Projected daily cost |
 | `finops:ec2_monthly_cost_usd` | Projected monthly cost |
 
 > [!NOTE]
-> The cost metrics use a fixed hourly price for `t3.medium` in `ap-south-1`. If you change the instance type or region, update the price in the recording rules under `k8s/prometheus/`.
+> Cost uses a fixed hourly price for `t3.medium` in `ap-south-1`. If you change the instance type or region, update the price in the recording rules under `k8s/prometheus/`.
 
 ---
 
-## 9. CI/CD: Push and Forget
+## 9. CI/CD
 
-Edit a manifest, push to `main`, and walk away. A three-stage pipeline (`.github/workflows/deploy.yml`) does the rest:
+Every push to `main` runs three stages (`.github/workflows/deploy.yml`):
 
-```mermaid
-flowchart LR
-    push["git push<br/>to main"] --> v["1. Validate<br/>kubeconform<br/>~1 min"]
-    v --> t["2. Integration Test<br/>temporary kind cluster<br/>~5 min"]
-    t --> d["3. Deploy<br/>SSH into EC2<br/>~1 min"]
-```
+| Stage | What it does | Time |
+|---|---|---|
+| **1. Validate** | Checks every manifest with `kubeconform` | ~1 min |
+| **2. Integration test** | Deploys everything to a temporary kind cluster and checks that Prometheus and Grafana are healthy | ~5 min |
+| **3. Deploy** | SSHes into EC2, runs `git pull` and `kubectl apply --server-side` | ~1 min |
 
-| Stage | What it does |
-|---|---|
-| **1. Validate** | Checks every Kubernetes manifest with `kubeconform` |
-| **2. Integration Test** | Starts a throwaway kind cluster, deploys everything, checks that Prometheus and Grafana are healthy |
-| **3. Deploy** | SSHes into EC2, runs `git pull` and `kubectl apply --server-side` |
+If a stage fails, the pipeline stops and nothing reaches your server.
 
-**The safety net:** if any stage fails, the pipeline stops, so a broken manifest never reaches your server.
-
-**Secrets it uses:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `PROD_SSH_KEY`, `PROD_SERVER_IP`, plus the `production` environment. See [section 4.3](#43-the-four-github-secrets).
+Secrets used: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `PROD_SSH_KEY`, `PROD_SERVER_IP`, plus the `production` environment ([details](#42-github-secrets)).
 
 ### After a Prometheus config change
 
-`kubectl apply` updates the ConfigMap, but Prometheus only reads its config **at startup**. Restart it to load new alert rules, recording rules and scrape configs:
+Prometheus reads its config only at startup. Restart it to load new rules and scrape configs:
 
 ```bash
 ssh -i <key>.pem ubuntu@<EC2-IP> \
@@ -716,46 +428,26 @@ ssh -i <key>.pem ubuntu@<EC2-IP> \
 
 ---
 
-## 10. Daily Operations
+## 10. Operations
 
-### Cheat sheet
-
-| I want to... | Run this |
+| I want to... | Run |
 |---|---|
 | SSH into the server | `ssh -i <key>.pem ubuntu@<EC2-IP>` |
-| Check the pods | `kubectl get pods -n monitoring` |
-| See scrape targets | open `http://<EC2-IP>:9090/targets` |
+| Check pods | `kubectl get pods -n monitoring` |
+| See scrape targets | `http://<EC2-IP>:9090/targets` |
 | Watch the boot log | `tail -f /var/log/monitoring-setup.log` |
 | Deploy a change | `git push origin main` |
 | Get the server IP | `terraform output ec2_public_ip` |
-| Build or destroy everything | `terraform apply` / `terraform destroy` |
+| Restart Prometheus | `kubectl rollout restart deployment prometheus -n monitoring` |
 
-### The IP changed after a stop/start
+**IP changed after a stop/start?** Public IPs change on every restart. Run `terraform output ec2_public_ip`, then update the `PROD_SERVER_IP` secret. For a permanent address, attach an **Elastic IP** (AWS charges for public IPv4 addresses).
 
-A normal public IP changes every time the instance is stopped and started.
-
-```bash
-cd terraform-aws/prometheus-stack
-terraform output ec2_public_ip      # get the new IP
-# then update the PROD_SERVER_IP GitHub secret
-```
-
-For a permanent address, allocate an **Elastic IP** (AWS Console → EC2 → Elastic IPs) and attach it to the instance. AWS charges for public IPv4 addresses.
-
-### Restart a component
-
-```bash
-ssh -i <key>.pem ubuntu@<EC2-IP> \
-  "export KUBECONFIG=/home/ubuntu/.kube/config && \
-   kubectl rollout restart deployment prometheus -n monitoring"
-```
-
-### Stop paying, then bring it back
+**Stop paying:**
 
 ```bash
 cd terraform-aws/prometheus-stack
-terraform destroy      # delete everything (type "yes")
-terraform apply        # recreate it, then wait ~5 minutes
+terraform destroy      # type "yes"
+terraform apply        # to bring it back, then wait ~5 minutes
 ```
 
 > [!WARNING]
@@ -765,58 +457,54 @@ terraform apply        # recreate it, then wait ~5 minutes
 
 ## 11. Troubleshooting
 
-Find your symptom, apply the fix.
-
 <details>
-<summary><b>While setting up</b></summary>
+<summary><b>During setup</b></summary>
 
 <br>
 
-| Symptom | Likely cause and fix |
+| Symptom | Cause and fix |
 |---|---|
-| `aws sts get-caller-identity` fails | Wrong or missing keys. Run `aws configure` again |
-| `terraform apply`: `InvalidKeyPair.NotFound` | `key_name` is misspelled, includes `.pem`, or the key was made in a region other than `ap-south-1` |
-| `terraform apply`: `UnauthorizedOperation` | The IAM user lacks EC2 permissions. Attach `AmazonEC2FullAccess` |
-| Terraform cannot find a VPC or subnet | No default VPC. VPC console → Actions → Create default VPC |
-| `ssh`: `Permission denied (publickey)` | Wrong key, wrong user (it is `ubuntu`), or loose file permissions (`chmod 400`) |
-| `ssh` times out | Instance still starting, IP changed, or port 22 blocked in the security group |
+| `aws sts get-caller-identity` fails | Wrong keys. Run `aws configure` again |
+| `InvalidKeyPair.NotFound` | `key_name` misspelled, includes `.pem`, or the key is not in `ap-south-1` |
+| `UnauthorizedOperation` | IAM user lacks EC2 permissions. Attach `AmazonEC2FullAccess` |
+| No VPC or subnet found | No default VPC. VPC console → Actions → Create default VPC |
+| `ssh`: `Permission denied (publickey)` | Wrong key, wrong user (use `ubuntu`), or loose permissions (`chmod 400`) |
+| `ssh` times out | Instance still starting, IP changed, or port 22 blocked |
 
 </details>
 
 <details>
-<summary><b>After setup: the stack is running but something is off</b></summary>
+<summary><b>After setup</b></summary>
 
 <br>
 
-| Symptom | Likely cause and fix |
+| Symptom | Cause and fix |
 |---|---|
-| `ERR_CONNECTION_TIMED_OUT` in the browser | IP changed after a stop/start, a security group rule is missing, you used `https://`, or the boot script is still running |
-| Pods not ready | Check `tail -f /var/log/monitoring-setup.log`. Pods stuck `Pending` can mean the t3.medium is out of memory |
-| Prometheus targets show 403 | Make sure `k8s/prometheus/kubelet-rbac.yaml` is applied |
-| Grafana panel says "No data" | Check the dropdowns (Job, Instance, Nodename) and confirm the target is **UP** in Prometheus |
-| Dashboard not updating after a config change | Restart Prometheus and Grafana ([how](#after-a-prometheus-config-change)) |
+| `ERR_CONNECTION_TIMED_OUT` | IP changed, a security group rule is missing, you used `https://`, or the boot script is still running |
+| Pods not ready | Check the boot log. Pods stuck `Pending` can mean the t3.medium is out of memory |
+| Prometheus targets show 403 | Apply `k8s/prometheus/kubelet-rbac.yaml` |
+| Grafana "No data" | Check the dropdowns, and confirm the target is **UP** in Prometheus |
+| Config change not showing | Restart Prometheus and Grafana ([how](#after-a-prometheus-config-change)) |
 
 </details>
 
 <details>
-<summary><b>CI/CD pipeline problems</b></summary>
+<summary><b>CI/CD</b></summary>
 
 <br>
 
-| Symptom | Likely cause and fix |
+| Symptom | Cause and fix |
 |---|---|
-| `Permission denied (publickey)` | `PROD_SSH_KEY` is incomplete. Paste the whole file, including the `BEGIN` and `END` lines |
-| Deploy cannot connect | `PROD_SERVER_IP` is outdated, or port 22 no longer allows GitHub's runners ([why](#12-security-checklist)) |
+| `Permission denied (publickey)` | `PROD_SSH_KEY` is incomplete. Paste the whole file, including `BEGIN` and `END` lines |
+| Deploy cannot connect | `PROD_SERVER_IP` is outdated, or port 22 blocks GitHub's runners ([why](#12-security)) |
 
 </details>
 
 ---
 
-## 12. Security Checklist
+## 12. Security
 
-### What is open to the world
-
-| Port | Service | Has a login? |
+| Port | Service | Login |
 |---|---|:---:|
 | 22 | SSH | Key only |
 | 3000 | Grafana | Yes |
@@ -824,46 +512,25 @@ Find your symptom, apply the fix.
 | 9093 | Alertmanager | **No** |
 | 9115 | Blackbox Exporter | **No** |
 
-By default, every one of these accepts traffic from anywhere (`0.0.0.0/0`). That is fine for a demo and risky for anything else.
+By default all ports accept traffic from anywhere (`0.0.0.0/0`). That is fine for a demo, not for production.
 
-### Before you walk away
-
-- [ ] **Change the Grafana password** after the first login
-- [ ] **Restrict ports 9090, 9093 and 9115** to your own IP (find it with `curl ifconfig.io`). They have no login
-- [ ] **Never commit** your `.pem`, AWS keys, `.env` or Terraform state ([section 4.4](#44-keep-secrets-out-of-git))
-- [ ] Use a **dedicated IAM user** with limited permissions, and **rotate its keys** regularly
+- [ ] Change the Grafana password after first login
+- [ ] Restrict ports 9090, 9093 and 9115 to your own IP (`curl ifconfig.io`)
+- [ ] Never commit `.pem`, AWS keys, `.env` or Terraform state ([see 4.3](#43-keep-secrets-out-of-git))
+- [ ] Use a dedicated IAM user with limited permissions, and rotate its keys
 
 > [!WARNING]
-> **Do not lock SSH (port 22) to your IP if you use the pipeline.** The Deploy stage connects from GitHub-hosted runners, and their IPs change constantly, so the stage would fail. Pick one: keep port 22 open with key-only login, use a self-hosted runner, or deploy through AWS Systems Manager.
+> **Do not restrict SSH (port 22) to your IP if you use the pipeline.** The Deploy stage connects from GitHub runners, whose IPs change constantly. Instead: keep port 22 open with key-only login, use a self-hosted runner, or deploy through AWS Systems Manager.
 
 ---
 
-## 13. Why It Is Built This Way
+## 13. Design Notes
 
-Every odd-looking choice in this repo has a reason.
-
-**Dashboards load themselves.** The dashboard JSON lives in a ConfigMap, gets mounted into the Grafana pod, and a provider ConfigMap tells Grafana to load it on startup. No manual import for the main dashboards.
-
-**`kubectl apply --server-side`, everywhere.** The Node Exporter dashboard JSON is about 300 KB. A normal `kubectl apply` stores the full config in an annotation, which has a 262 KB limit, so it fails. Server-side apply has no such limit.
-
-**No hardcoded VPC IDs.** Terraform finds your default VPC and subnets with data sources, so the same code works in any account.
-
-**A kubelet RBAC patch.** `k8s/prometheus/kubelet-rbac.yaml` gives Prometheus permission to read kubelet metrics. Without it, the `kubernetes-nodes` and `kubernetes-cadvisor` targets return 403.
-
-**Two port layouts.** Local kind (`kind-cluster.yaml`) uses Grafana `13000` and Prometheus `19090` to avoid clashing with other tools. EC2 (`kind-cluster-ec2.yaml`) uses the standard `3000` and `9090`.
-
-**Pre-computed FinOps numbers.** Recording rules calculate cost and utilization every 15 seconds, so a dashboard reads a ready answer instead of running a heavy query on every refresh.
-
-### Tech stack
-
-| Area | Tools |
-|---|---|
-| **Monitoring** | Prometheus, Node Exporter, kube-state-metrics, Blackbox Exporter |
-| **Visualization** | Grafana |
-| **Alerting** | Alertmanager |
-| **Orchestration** | Kubernetes (kind), kubectl |
-| **Infrastructure** | Terraform, AWS EC2, Security Groups |
-| **CI/CD** | GitHub Actions, kubeconform |
+- **Dashboards auto-load.** Dashboard JSON sits in a ConfigMap mounted into Grafana, and a provider ConfigMap loads it at startup.
+- **`kubectl apply --server-side`.** The Node Exporter dashboard is about 300 KB. A normal apply stores it in an annotation capped at 262 KB and fails.
+- **No hardcoded VPC IDs.** Terraform finds your default VPC and subnets with data sources.
+- **Kubelet RBAC.** `k8s/prometheus/kubelet-rbac.yaml` stops the `kubernetes-nodes` and `kubernetes-cadvisor` targets returning 403.
+- **Two port layouts.** Local kind uses Grafana `13000` and Prometheus `19090`. EC2 uses the standard `3000` and `9090`.
 
 ---
 
@@ -877,7 +544,7 @@ overwatch/
 ├── k8s/
 │   ├── kind/                   # kind cluster configs (local and EC2)
 │   ├── namespace/              # monitoring namespace
-│   ├── prometheus/             # Prometheus, alert rules, FinOps recording rules, kubelet RBAC
+│   ├── prometheus/             # Prometheus, alert rules, FinOps rules, kubelet RBAC
 │   ├── alertmanager/           # Alertmanager config and routing
 │   ├── grafana/                # Grafana + auto-provisioned dashboards
 │   ├── node-exporter/          # DaemonSet on every node
@@ -895,40 +562,10 @@ overwatch/
 
 ---
 
-## 15. Glossary
-
-<details>
-<summary><b>New to this? Open the plain-English dictionary</b></summary>
-
-<br>
-
-| Term | Plain-English meaning |
-|---|---|
-| **Observability** | Being able to see what is happening inside your systems |
-| **Metric** | A number measured over time, such as CPU usage |
-| **Exporter** | A small program that exposes metrics for Prometheus to collect |
-| **Scrape** | Prometheus visiting an exporter to read its current numbers |
-| **Recording rule** | A saved calculation that Prometheus runs ahead of time |
-| **Alert rule** | A condition, like "CPU above 90% for 5 minutes", that triggers an alert |
-| **Inhibition** | Muting a small alert when a bigger one already explains it |
-| **kind** | "Kubernetes in Docker": a cluster that runs inside containers |
-| **Manifest** | A YAML file describing something to run in Kubernetes |
-| **ConfigMap** | A Kubernetes object that holds configuration files |
-| **DaemonSet** | A workload that runs one pod on every node |
-| **Terraform** | A tool that creates cloud resources from code |
-| **user-data** | A script AWS runs automatically the first time an instance boots |
-| **IAM user** | A named identity in AWS with its own keys and permissions |
-| **Key pair** | A public/private SSH key pair. AWS keeps the public half; you keep the `.pem` |
-| **FinOps** | Managing cloud cost by comparing usage with spend |
-
-</details>
-
----
-
-## 16. Roadmap
+## 15. Roadmap
 
 - [ ] Elastic IP managed by Terraform
-- [ ] Switch AWS credentials to GitHub OIDC (no stored keys)
+- [ ] GitHub OIDC instead of stored AWS keys
 - [ ] Slack or email alert notifications
 - [ ] Per-container metrics with cAdvisor
 - [ ] Remote Terraform state in S3
@@ -939,6 +576,6 @@ overwatch/
 
 **Built by [Shubham](https://github.com/Shubhamx18)**
 
-If Overwatch helped you, consider giving it a star on GitHub.
+If Overwatch helped you, consider giving it a star.
 
 </div>
