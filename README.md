@@ -23,23 +23,35 @@ One `terraform apply` builds it. Every `git push` updates it.
 
 ## Contents
 
+**Understand it**
 1. [Overview](#1-overview)
-2. [Quick Start](#2-quick-start)
-3. [How It Works](#3-how-it-works)
-4. [Credentials](#4-credentials)
-5. [Setup](#5-setup)
-6. [Verify](#6-verify)
-7. [Screenshots](#7-screenshots)
-8. [FinOps](#8-finops)
-9. [CI/CD](#9-cicd)
-10. [Operations](#10-operations)
-11. [Troubleshooting](#11-troubleshooting)
-12. [Security](#12-security)
+2. [How It Works](#2-how-it-works)
+3. [Screenshots](#3-screenshots)
+
+**Deploy it**
+
+4. [Quick Start](#4-quick-start)
+5. [Credentials](#5-credentials)
+6. [Setup](#6-setup)
+7. [Verify](#7-verify)
+8. [Security](#8-security)
+
+**Use it**
+
+9. [FinOps](#9-finops)
+10. [CI/CD](#10-cicd)
+11. [Operations](#11-operations)
+
+**Reference**
+
+12. [Troubleshooting](#12-troubleshooting)
 13. [Design Notes](#13-design-notes)
 14. [Project Structure](#14-project-structure)
 15. [Roadmap](#15-roadmap)
 
 ---
+
+# Part 1: Understand it
 
 ## 1. Overview
 
@@ -60,9 +72,113 @@ Everything is code: **Terraform** builds the server, **Kubernetes manifests** de
 | **You need** | An AWS account, a GitHub account, a terminal |
 | **Cost** | EC2 is billed by the hour. Run `terraform destroy` when done |
 
+### Your path through this README
+
+| Stage | You want to... | Go to |
+|---|---|---|
+| 1. Understand | Know what this is and how it fits together | [How It Works](#2-how-it-works), [Screenshots](#3-screenshots) |
+| 2. Deploy | Get it running | [Quick Start](#4-quick-start) (experienced) or [Setup](#6-setup) (step by step) |
+| 3. Confirm | Check that everything works | [Verify](#7-verify) |
+| 4. Protect | Make it safe to leave running | [Security](#8-security) |
+| 5. Use | Read costs, ship changes, run it day to day | [FinOps](#9-finops), [CI/CD](#10-cicd), [Operations](#11-operations) |
+| 6. Fix | Something broke | [Troubleshooting](#12-troubleshooting) |
+
 ---
 
-## 2. Quick Start
+## 2. How It Works
+
+### The stack
+
+```mermaid
+flowchart LR
+    subgraph EC2["AWS EC2 t3.medium (ap-south-1)"]
+        subgraph KIND["kind cluster (namespace: monitoring)"]
+            NE["Node Exporter<br/>CPU, RAM, disk, network"]
+            KSM["kube-state-metrics<br/>pod and node state"]
+            BB["Blackbox Exporter<br/>URL and SSL probes"]
+            PROM["Prometheus<br/>collect + rules"]
+            GRAF["Grafana<br/>dashboards"]
+            AM["Alertmanager<br/>group + route"]
+        end
+    end
+    NE --> PROM
+    KSM --> PROM
+    BB --> PROM
+    PROM --> GRAF
+    PROM -- "alert fires" --> AM
+    YOU(["You (browser)"]) --> GRAF
+    YOU --> AM
+```
+
+| Component | Job |
+|---|---|
+| **Node Exporter** | Reports CPU, RAM, disk and network of each node |
+| **kube-state-metrics** | Reports the state of pods and nodes |
+| **Blackbox Exporter** | Probes URLs for uptime and SSL expiry |
+| **Prometheus** | Collects metrics, evaluates alert and recording rules |
+| **Grafana** | Draws dashboards from Prometheus |
+| **Alertmanager** | Groups, routes and sends alerts |
+
+**The flow:** exporters publish metrics, Prometheus collects them, Grafana shows them, and Alertmanager handles alerts when a rule fires.
+
+### The build
+
+```mermaid
+flowchart LR
+    A["1. You run<br/>terraform apply"] --> B["2. Terraform creates<br/>EC2 + firewall"]
+    B --> C["3. First boot installs<br/>Docker, kind, kubectl"]
+    C --> D["4. Server clones repo,<br/>creates cluster, deploys stack"]
+    D --> E["5. Stack is live<br/>Grafana on :3000"]
+    F["You: git push to main"] --> G["GitHub Actions<br/>Validate, Test, Deploy"]
+    G -- "SSH + kubectl apply" --> E
+```
+
+Terraform builds the server once. After that, GitHub Actions redeploys on every push.
+
+> [!NOTE]
+> The kind nodes are Docker containers on the same EC2 machine, so every Node Exporter reports the same underlying host. Near-identical numbers across nodes are expected.
+
+---
+
+## 3. Screenshots
+
+**AWS EC2.** A `t3.medium` in `ap-south-1`. Everything runs on this one machine.
+
+![AWS EC2 instance running the stack](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/aws-ec2-instance.png)
+
+**Alertmanager.** Status `ready`. Prometheus sends alerts here.
+
+![Alertmanager status](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/alertmanager-status.png)
+
+**Cluster overview.** How much pod, CPU and memory capacity is already requested. The starting point for right-sizing.
+
+![Kubernetes cluster requests and capacity](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/grafana-kubernetes-cluster.png)
+
+**Node view.** CPU busy, system load, RAM and swap used, pressure, uptime.
+
+![Node Exporter quick CPU, memory and disk view](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-capacity-forecast.png)
+
+**Resource utilization.** Load, memory, disk I/O and the most memory-hungry pods over time.
+
+![FinOps resource utilization](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-resource-utilization.png)
+
+**Pod and node health.** Running pods, restarts, CPU idle and node storage.
+
+![Pod and node health](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-pod-node-health.png)
+
+**EC2 cost predictor.** Hourly, daily and monthly cost projected from the instance price.
+
+![EC2 cost predictor dashboard](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/aws_ec2_cost_predictor.png)
+
+**Usage vs waste.** What the server costs compared with how much of it is actually used.
+
+![Usage vs waste dashboard](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/usage_vs_waste.png)
+
+---
+
+# Part 2: Deploy it
+
+## 4. Quick Start
 
 Already have an AWS access key, an EC2 key pair in `ap-south-1`, and Git, Terraform and the AWS CLI installed?
 
@@ -79,33 +195,15 @@ terraform apply                  # type "yes"
 
 After about 5 minutes, open `http://<ec2_public_ip>:3000`.
 
-New to any of this? Follow the [full setup](#5-setup).
+New to any of this? Follow the [full setup](#6-setup).
 
 ---
 
-## 3. How It Works
+## 5. Credentials
 
-| Component | Job |
-|---|---|
-| **Node Exporter** | Reports CPU, RAM, disk and network of each node |
-| **kube-state-metrics** | Reports the state of pods and nodes |
-| **Blackbox Exporter** | Probes URLs for uptime and SSL expiry |
-| **Prometheus** | Collects metrics, evaluates alert and recording rules |
-| **Grafana** | Draws dashboards from Prometheus |
-| **Alertmanager** | Groups, routes and sends alerts |
+Read this before the setup so you know what you will create and where each item goes.
 
-**The flow:** exporters publish metrics, Prometheus collects them, Grafana shows them, and Alertmanager handles alerts when a rule fires.
-
-**The build:** Terraform creates the EC2 server and firewall. On first boot, the server installs Docker, kind and kubectl, clones this repo, creates the cluster and deploys everything. After that, GitHub Actions redeploys on every push.
-
-> [!NOTE]
-> The kind nodes are Docker containers on the same EC2 machine, so every Node Exporter reports the same underlying host. Near-identical numbers across nodes are expected.
-
----
-
-## 4. Credentials
-
-### 4.1 Everything you need to create
+### 5.1 Everything you need to create
 
 | Name | What it is | Where to get it | Where it goes | Secret |
 |---|---|---|---|:---:|
@@ -120,9 +218,9 @@ New to any of this? Follow the [full setup](#5-setup).
 
 The EC2 server stores no secrets. It has no IAM role, and your AWS keys stay on your computer and in GitHub.
 
-### 4.2 GitHub secrets
+### 5.2 GitHub secrets
 
-Only needed for [CI/CD](#9-cicd). Add them under **Settings → Secrets and variables → Actions → New repository secret**.
+Only needed for [CI/CD](#10-cicd). Add them under **Settings → Secrets and variables → Actions → New repository secret**.
 
 | Secret name | Value | How to get it |
 |---|---|---|
@@ -133,7 +231,7 @@ Only needed for [CI/CD](#9-cicd). Add them under **Settings → Secrets and vari
 
 Also create the environment: **Settings → Environments → New environment → `production`**.
 
-### 4.3 Keep secrets out of Git
+### 5.3 Keep secrets out of Git
 
 Add this to `.gitignore` before your first commit:
 
@@ -150,9 +248,22 @@ Add this to `.gitignore` before your first commit:
 
 ---
 
-## 5. Setup
+## 6. Setup
 
 Each step ends with a **Check**. Fix any failure before moving on.
+
+| Step | What | Time |
+|---|---|---|
+| 1 | Install tools | 10 min |
+| 2 | Prepare AWS | 10 min |
+| 3 | Connect to AWS | 1 min |
+| 4 | Get the code | 1 min |
+| 5 | Build the server | 3 min |
+| 6 | Wait for first boot | 5 min |
+| 7 | Open the tools | 1 min |
+| 8 | Log in to Grafana | 3 min |
+| 9 | Auto-deploy with CI/CD (optional) | 5 min |
+| 10 | Lock it down | |
 
 ### Step 1: Install tools (10 min)
 
@@ -318,7 +429,7 @@ Use `http://`, not `https://`.
 ### Step 9: Auto-deploy with CI/CD (optional, 5 min)
 
 1. Fork this repo, or push your copy to a new GitHub repo.
-2. Add the four [GitHub secrets](#42-github-secrets) and the `production` environment.
+2. Add the four [GitHub secrets](#52-github-secrets) and the `production` environment.
 3. Push a change:
 
 ```bash
@@ -331,11 +442,11 @@ git push origin main
 
 ### Step 10: Lock it down
 
-Work through the [Security checklist](#12-security) before leaving it running.
+Work through the [Security checklist](#8-security) before leaving it running.
 
 ---
 
-## 6. Verify
+## 7. Verify
 
 | Check | How | Expected |
 |---|---|---|
@@ -358,43 +469,31 @@ curl -XPOST http://<EC2-IP>:9093/api/v2/alerts \
 
 ---
 
-## 7. Screenshots
+## 8. Security
 
-**AWS EC2.** A `t3.medium` in `ap-south-1`. Everything runs on this one machine.
+| Port | Service | Login |
+|---|---|:---:|
+| 22 | SSH | Key only |
+| 3000 | Grafana | Yes |
+| 9090 | Prometheus | **No** |
+| 9093 | Alertmanager | **No** |
+| 9115 | Blackbox Exporter | **No** |
 
-![AWS EC2 instance running the stack](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/aws-ec2-instance.png)
+By default all ports accept traffic from anywhere (`0.0.0.0/0`). That is fine for a demo, not for production.
 
-**Alertmanager.** Status `ready`. Prometheus sends alerts here.
+- [ ] Change the Grafana password after first login
+- [ ] Restrict ports 9090, 9093 and 9115 to your own IP (`curl ifconfig.io`)
+- [ ] Never commit `.pem`, AWS keys, `.env` or Terraform state ([see 5.3](#53-keep-secrets-out-of-git))
+- [ ] Use a dedicated IAM user with limited permissions, and rotate its keys
 
-![Alertmanager status](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/alertmanager-status.png)
-
-**Cluster overview.** How much pod, CPU and memory capacity is already requested. The starting point for right-sizing.
-
-![Kubernetes cluster requests and capacity](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/grafana-kubernetes-cluster.png)
-
-**Node view.** CPU busy, system load, RAM and swap used, pressure, uptime.
-
-![Node Exporter quick CPU, memory and disk view](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-capacity-forecast.png)
-
-**Resource utilization.** Load, memory, disk I/O and the most memory-hungry pods over time.
-
-![FinOps resource utilization](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-resource-utilization.png)
-
-**Pod and node health.** Running pods, restarts, CPU idle and node storage.
-
-![Pod and node health](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-pod-node-health.png)
-
-**EC2 cost predictor.** Hourly, daily and monthly cost projected from the instance price.
-
-![EC2 cost predictor dashboard](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/aws_ec2_cost_predictor.png)
-
-**Usage vs waste.** What the server costs compared with how much of it is actually used.
-
-![Usage vs waste dashboard](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/usage_vs_waste.png)
+> [!WARNING]
+> **Do not restrict SSH (port 22) to your IP if you use the pipeline.** The Deploy stage connects from GitHub runners, whose IPs change constantly. Instead: keep port 22 open with key-only login, use a self-hosted runner, or deploy through AWS Systems Manager.
 
 ---
 
-## 8. FinOps
+# Part 3: Use it
+
+## 9. FinOps
 
 Prometheus recording rules pre-compute these metrics every 15 seconds, so dashboards load instantly.
 
@@ -416,9 +515,18 @@ Prometheus recording rules pre-compute these metrics every 15 seconds, so dashbo
 
 ---
 
-## 9. CI/CD
+## 10. CI/CD
 
 Every push to `main` runs three stages (`.github/workflows/deploy.yml`):
+
+```mermaid
+flowchart LR
+    P["git push<br/>to main"] --> V["1. Validate<br/>kubeconform"]
+    V --> T["2. Integration test<br/>temporary kind cluster"]
+    T --> D["3. Deploy<br/>SSH to EC2"]
+    V -. "fail" .-> X["Pipeline stops<br/>server untouched"]
+    T -. "fail" .-> X
+```
 
 | Stage | What it does | Time |
 |---|---|---|
@@ -428,7 +536,7 @@ Every push to `main` runs three stages (`.github/workflows/deploy.yml`):
 
 If a stage fails, the pipeline stops and nothing reaches your server.
 
-Secrets used: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `PROD_SSH_KEY`, `PROD_SERVER_IP`, plus the `production` environment ([details](#42-github-secrets)).
+Secrets used: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `PROD_SSH_KEY`, `PROD_SERVER_IP`, plus the `production` environment ([details](#52-github-secrets)).
 
 ### After a Prometheus config change
 
@@ -442,7 +550,7 @@ ssh -i <key>.pem ubuntu@<EC2-IP> \
 
 ---
 
-## 10. Operations
+## 11. Operations
 
 | I want to... | Run |
 |---|---|
@@ -469,7 +577,9 @@ terraform apply        # to bring it back, then wait ~5 minutes
 
 ---
 
-## 11. Troubleshooting
+# Part 4: Reference
+
+## 12. Troubleshooting
 
 <details>
 <summary><b>During setup</b></summary>
@@ -511,31 +621,9 @@ terraform apply        # to bring it back, then wait ~5 minutes
 | Symptom | Cause and fix |
 |---|---|
 | `Permission denied (publickey)` | `PROD_SSH_KEY` is incomplete. Paste the whole file, including `BEGIN` and `END` lines |
-| Deploy cannot connect | `PROD_SERVER_IP` is outdated, or port 22 blocks GitHub's runners ([why](#12-security)) |
+| Deploy cannot connect | `PROD_SERVER_IP` is outdated, or port 22 blocks GitHub's runners ([why](#8-security)) |
 
 </details>
-
----
-
-## 12. Security
-
-| Port | Service | Login |
-|---|---|:---:|
-| 22 | SSH | Key only |
-| 3000 | Grafana | Yes |
-| 9090 | Prometheus | **No** |
-| 9093 | Alertmanager | **No** |
-| 9115 | Blackbox Exporter | **No** |
-
-By default all ports accept traffic from anywhere (`0.0.0.0/0`). That is fine for a demo, not for production.
-
-- [ ] Change the Grafana password after first login
-- [ ] Restrict ports 9090, 9093 and 9115 to your own IP (`curl ifconfig.io`)
-- [ ] Never commit `.pem`, AWS keys, `.env` or Terraform state ([see 4.3](#43-keep-secrets-out-of-git))
-- [ ] Use a dedicated IAM user with limited permissions, and rotate its keys
-
-> [!WARNING]
-> **Do not restrict SSH (port 22) to your IP if you use the pipeline.** The Deploy stage connects from GitHub runners, whose IPs change constantly. Instead: keep port 22 open with key-only login, use a self-hosted runner, or deploy through AWS Systems Manager.
 
 ---
 
