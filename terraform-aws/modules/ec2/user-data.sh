@@ -92,15 +92,15 @@ chown ubuntu:ubuntu /home/ubuntu/.kube/config
 # ── 8. Deploy Monitoring Stack ────────────────────────────────
 echo "[8/8] Deploying monitoring stack..."
 
-kubectl apply -f k8s/namespace/
+kubectl apply --server-side -f k8s/namespace/
 sleep 5
 
-kubectl apply -f k8s/prometheus/
-kubectl apply -f k8s/alertmanager/
-kubectl apply -f k8s/grafana/
-kubectl apply -f k8s/node-exporter/
-kubectl apply -f k8s/kube-state-metrics/
-kubectl apply -f k8s/blackbox-exporter/
+kubectl apply --server-side -f k8s/prometheus/
+kubectl apply --server-side -f k8s/alertmanager/
+kubectl apply --server-side -f k8s/grafana/
+kubectl apply --server-side -f k8s/node-exporter/
+kubectl apply --server-side -f k8s/kube-state-metrics/
+kubectl apply --server-side -f k8s/blackbox-exporter/
 
 echo "Waiting for pods to be ready (up to 5 minutes)..."
 kubectl wait --for=condition=ready pod --all -n monitoring --timeout=300s || true
