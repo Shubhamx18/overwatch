@@ -358,6 +358,21 @@ curl -XPOST http://<EC2-IP>:9093/api/v2/alerts \
 
 ---
 
+
+**Dashboards → New → Import**, enter the ID, click **Load**, pick the **Prometheus** data source.
+ 
+| ID | Dashboard | Use it for |
+|---|---|---|
+| `1860` | Node Exporter Full | Deep CPU, RAM, disk and network per node |
+| `13332` | kube-state-metrics v2 | Pod, deployment and node state |
+| `7249` | Kubernetes Cluster | Basic cluster overview |
+| `15757` | Kubernetes / Views / Global | Best first screen: whole cluster at a glance |
+| `15758` | Kubernetes / Views / Namespaces | Usage per namespace |
+| `15759` | Kubernetes / Views / Nodes | Per-node detail |
+| `15760` | Kubernetes / Views / Pods | Per-pod CPU, memory, restarts |
+| `15761` | Kubernetes / System / API Server | Control plane health (may be partly empty on kind) |
+| `13659` | Blackbox Exporter (HTTP prober) | Uptime, response time, SSL expiry |
+
 ## 7. Screenshots
 
 **AWS EC2.** A `t3.medium` in `ap-south-1`. Everything runs on this one machine.
