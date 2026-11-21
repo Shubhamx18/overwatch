@@ -184,7 +184,7 @@ data:
           },
           "targets": [
             {
-              "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+              "expr": "avg((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)",
               "legendFormat": "RAM Usage %",
               "refId": "A"
             }

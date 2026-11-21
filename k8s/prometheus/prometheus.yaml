@@ -384,25 +384,25 @@ data:
     - name: FinOpsRecording
       interval: 5m
       rules:
-      # CPU utilization % averaged over 24h
+      # CPU utilization % — single value across all CPUs and nodes
       - record: finops:cpu_utilization_24h
-        expr: (1 - avg_over_time(avg(irate(node_cpu_seconds_total{mode="idle"}[5m]))[24h:5m])) * 100
+        expr: 100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
 
-      # RAM utilization % averaged over 24h — single value across all nodes
+      # RAM utilization % — single value across all nodes
       - record: finops:ram_utilization_24h
-        expr: avg((1 - avg_over_time((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)[24h:5m])) * 100)
+        expr: avg(100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100))
 
-      # Disk utilization % — largest used disk across nodes
+      # Disk utilization % — single value (highest used disk)
       - record: finops:disk_utilization
-        expr: max((1 - (node_filesystem_free_bytes{fstype!="tmpfs",fstype!="overlay",mountpoint!=""} / node_filesystem_size_bytes{fstype!="tmpfs",fstype!="overlay",mountpoint!=""})) * 100)
+        expr: max(100 - (node_filesystem_free_bytes{fstype!="tmpfs",fstype!="overlay"} / node_filesystem_size_bytes{fstype!="tmpfs",fstype!="overlay"} * 100))
 
       # Total RAM in GB — sum across all nodes
       - record: finops:total_ram_gb
-        expr: sum(node_memory_MemTotal_bytes) / 1024 / 1024 / 1024
+        expr: sum(node_memory_MemTotal_bytes) / 1073741824
 
       # Total Disk in GB — sum across all nodes
       - record: finops:total_disk_gb
-        expr: sum(node_filesystem_size_bytes{fstype!="tmpfs",fstype!="overlay",mountpoint!=""}) / 1024 / 1024 / 1024
+        expr: sum(node_filesystem_size_bytes{fstype!="tmpfs",fstype!="overlay"}) / 1073741824
 ---
 apiVersion: apps/v1
 kind: Deployment
