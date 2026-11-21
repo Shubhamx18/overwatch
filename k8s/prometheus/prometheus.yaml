@@ -382,7 +382,7 @@ data:
 
     # ─── FinOps — Recording Rules (pre-computed metrics) ───────
     - name: FinOpsRecording
-      interval: 5m
+      interval: 15s
       rules:
       # CPU utilization % — single value across all CPUs and nodes
       - record: finops:cpu_utilization_24h
