@@ -308,6 +308,10 @@ Use `http://`, not `https://`.
 | `15761` | Kubernetes / System / API Server | Control plane health (may be partly empty on kind) |
 | `13659` | Blackbox Exporter (HTTP prober) | Uptime, response time, SSL expiry |
 
+
+<img src="https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/aws_ec2_cost_predictor.png" alt="Overwatch Kubernetes cluster dashboard" width="900">
+<img src="https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/usage_vs_waste.png" alt="Overwatch Kubernetes cluster dashboard" width="900">
+
 </details>
 
 > [!TIP]
