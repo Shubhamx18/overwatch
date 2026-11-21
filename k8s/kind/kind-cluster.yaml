@@ -1,0 +1,33 @@
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+name: overwatch-cluster
+
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 30090   # Prometheus
+        hostPort: 19090
+        protocol: TCP
+      - containerPort: 30030   # Grafana
+        hostPort: 13000
+        protocol: TCP
+      - containerPort: 30093   # Alertmanager
+        hostPort: 19093
+        protocol: TCP
+      - containerPort: 30115   # Blackbox Exporter
+        hostPort: 19115
+        protocol: TCP
+
+  - role: worker
+    labels:
+      node-role: worker
+
+  - role: worker
+    labels:
+      node-role: worker

@@ -1,0 +1,190 @@
+name: CI/CD — Overwatch Observability Stack
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  KUBECONFIG: ${{ github.workspace }}/.kube/config
+
+jobs:
+  # ─── Job 1: Lint & Validate ────────────────────────────────────
+  lint-and-validate:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Kubernetes YAML files
+        uses: stefanprodan/kube-tools@v1
+        with:
+          kubectl: 1.29.0
+          command: |
+            echo "=== Validating K8s manifests ==="
+            kubectl apply --dry-run=client -f k8s/namespace/
+            kubectl apply --dry-run=client -f k8s/prometheus/
+            kubectl apply --dry-run=client -f k8s/alertmanager/
+            kubectl apply --dry-run=client -f k8s/grafana/
+            kubectl apply --dry-run=client -f k8s/node-exporter/
+            kubectl apply --dry-run=client -f k8s/kube-state-metrics/
+            kubectl apply --dry-run=client -f k8s/blackbox-exporter/
+            echo "=== All manifests are valid ==="
+
+      - name: Validate Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive terraform-aws/
+
+      - name: Terraform Validate
+        run: |
+          cd terraform-aws/prometheus-stack
+          terraform init -backend=false
+          terraform validate
+
+  # ─── Job 2: Security Scanning ──────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint-and-validate
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trivy - Scan for vulnerabilities in configs
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+
+      - name: tfsec - Terraform security scan
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working_directory: terraform-aws/
+          soft_fail: true
+
+      - name: Checkov - K8s security scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: k8s/
+          framework: kubernetes
+          soft_fail: true
+
+  # ─── Job 3: Deploy to Kind (Integration Test) ──────────────────
+  integration-test:
+    name: Integration Test on Kind
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Kind cluster
+        uses: helm/kind-action@v1.8.0
+        with:
+          config: k8s/kind/kind-cluster.yaml
+          cluster_name: overwatch-cluster
+
+      - name: Deploy monitoring stack
+        run: |
+          kubectl apply -f k8s/namespace/
+          kubectl apply -f k8s/prometheus/
+          kubectl apply -f k8s/alertmanager/
+          kubectl apply -f k8s/grafana/
+          kubectl apply -f k8s/node-exporter/
+          kubectl apply -f k8s/kube-state-metrics/
+          kubectl apply -f k8s/blackbox-exporter/
+
+      - name: Wait for all pods to be ready
+        run: |
+          echo "Waiting for pods to be ready..."
+          kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=120s
+          kubectl wait --for=condition=ready pod -l app=grafana -n monitoring --timeout=120s
+          kubectl wait --for=condition=ready pod -l app=alertmanager -n monitoring --timeout=120s
+          kubectl wait --for=condition=ready pod -l app=kube-state-metrics -n monitoring --timeout=120s
+          kubectl wait --for=condition=ready pod -l app=blackbox-exporter -n monitoring --timeout=120s
+
+      - name: Verify Prometheus is running
+        run: |
+          kubectl port-forward svc/prometheus 9090:9090 -n monitoring &
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9090/-/ready)
+          if [ "$STATUS" = "200" ]; then echo "✅ Prometheus is healthy"; else echo "❌ Prometheus is NOT healthy"; exit 1; fi
+
+      - name: Verify Grafana is running
+        run: |
+          kubectl port-forward svc/grafana 3000:3000 -n monitoring &
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health)
+          if [ "$STATUS" = "200" ]; then echo "✅ Grafana is healthy"; else echo "❌ Grafana is NOT healthy"; exit 1; fi
+
+      - name: Print pod status
+        if: always()
+        run: kubectl get pods -n monitoring -o wide
+
+  # ─── Job 4: Deploy to Production (main branch only) ───────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: integration-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PROD_SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/overwatch
+            git pull origin main
+            kubectl apply -f k8s/namespace/
+            kubectl apply -f k8s/prometheus/
+            kubectl apply -f k8s/alertmanager/
+            kubectl apply -f k8s/grafana/
+            kubectl apply -f k8s/node-exporter/
+            kubectl apply -f k8s/kube-state-metrics/
+            kubectl apply -f k8s/blackbox-exporter/
+            echo "✅ Deployment complete!"
+            kubectl get pods -n monitoring
+
+      - name: Notify Slack on success
+        if: success()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "✅ *Overwatch Stack Deployed Successfully!*\nBranch: `main`\nCommit: `${{ github.sha }}`\nBy: ${{ github.actor }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "❌ *Overwatch Stack Deployment FAILED!*\nBranch: `main`\nCommit: `${{ github.sha }}`\nBy: ${{ github.actor }}\nCheck: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

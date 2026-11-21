@@ -1,0 +1,33 @@
+# ── Secrets & Credentials ──────────────────────────────────────
+.env
+*.pem
+*.key
+*.crt
+
+# ── Terraform ──────────────────────────────────────────────────
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform/
+.terraform.lock.hcl
+terraform-aws/vars/*.tfvars
+!terraform-aws/vars/*.tfvars.example
+override.tf
+override.tf.json
+
+# ── Kubernetes ─────────────────────────────────────────────────
+kubeconfig
+*.kubeconfig
+.kube/
+
+# ── OS & Editor ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Logs ───────────────────────────────────────────────────────
+*.log
+logs/
