@@ -390,6 +390,10 @@ curl -XPOST http://<EC2-IP>:9093/api/v2/alerts \
 
 Prometheus recording rules pre-compute these metrics every 15 seconds, so dashboards load instantly.
 
+<img src="https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/grafana-kubernetes-cluster.png" alt="Overwatch Kubernetes cluster dashboard" width="900">
+<img src="https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/grafana-kubernetes-cluster.png" alt="Overwatch Kubernetes cluster dashboard" width="900">
+
+
 > **Low utilization with steady cost means over-provisioned.** That gap is where the savings are.
 
 | Metric | Meaning |
