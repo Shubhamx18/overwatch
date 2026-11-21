@@ -57,7 +57,7 @@ echo "Kind installed: $(kind version)"
 
 # ── 6. Clone Repository ───────────────────────────────────────
 echo "[6/8] Cloning monitoring repository..."
-REPO_URL="https://github.com/YOUR_GITHUB_USERNAME/overwatch.git"
+REPO_URL="https://github.com/Shubhamx18/overwatch.git"
 INSTALL_DIR="/opt/overwatch"
 
 if [ -d "$INSTALL_DIR" ]; then
