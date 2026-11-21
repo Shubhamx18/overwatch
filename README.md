@@ -109,7 +109,7 @@ New to any of this? Follow the [full setup](#5-setup).
 
 | Name | What it is | Where to get it | Where it goes | Secret |
 |---|---|---|---|:---:|
-| **AWS Access Key ID** | AWS username | IAM → Users → *your user* → Security credentials → Create access key | `aws configure` and GitHub secret `AWS_ACCESS_KEY_ID` | Private |
+| **AWS Access Key ID** | AWS username | IAM → Users → *your user* → Security credentials → Create access key | `aws configure` and GitHub secret `AWS_ACCESS_KEY_ID` | Yes |
 | **AWS Secret Access Key** | AWS password | Same screen (shown once) | `aws configure` and GitHub secret `AWS_SECRET_ACCESS_KEY` | Yes |
 | **AWS Region** | Where it is built | Fixed: `ap-south-1` | `aws configure` | No |
 | **Key pair name** | Label of your SSH key | EC2 → Key Pairs → Create key pair | `key_name` in `terraform.tfvars` | No |
@@ -308,10 +308,6 @@ Use `http://`, not `https://`.
 | `15761` | Kubernetes / System / API Server | Control plane health (may be partly empty on kind) |
 | `13659` | Blackbox Exporter (HTTP prober) | Uptime, response time, SSL expiry |
 
-
-<img src="https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/aws_ec2_cost_predictor.png" alt="Overwatch Kubernetes cluster dashboard" width="900">
-<img src="https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/usage_vs_waste.png" alt="Overwatch Kubernetes cluster dashboard" width="900">
-
 </details>
 
 > [!TIP]
@@ -362,21 +358,6 @@ curl -XPOST http://<EC2-IP>:9093/api/v2/alerts \
 
 ---
 
-
-**Dashboards → New → Import**, enter the ID, click **Load**, pick the **Prometheus** data source.
- 
-| ID | Dashboard | Use it for |
-|---|---|---|
-| `1860` | Node Exporter Full | Deep CPU, RAM, disk and network per node |
-| `13332` | kube-state-metrics v2 | Pod, deployment and node state |
-| `7249` | Kubernetes Cluster | Basic cluster overview |
-| `15757` | Kubernetes / Views / Global | Best first screen: whole cluster at a glance |
-| `15758` | Kubernetes / Views / Namespaces | Usage per namespace |
-| `15759` | Kubernetes / Views / Nodes | Per-node detail |
-| `15760` | Kubernetes / Views / Pods | Per-pod CPU, memory, restarts |
-| `15761` | Kubernetes / System / API Server | Control plane health (may be partly empty on kind) |
-| `13659` | Blackbox Exporter (HTTP prober) | Uptime, response time, SSL expiry |
-
 ## 7. Screenshots
 
 **AWS EC2.** A `t3.medium` in `ap-south-1`. Everything runs on this one machine.
@@ -402,6 +383,14 @@ curl -XPOST http://<EC2-IP>:9093/api/v2/alerts \
 **Pod and node health.** Running pods, restarts, CPU idle and node storage.
 
 ![Pod and node health](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-pod-node-health.png)
+
+**EC2 cost predictor.** Hourly, daily and monthly cost projected from the instance price.
+
+![EC2 cost predictor dashboard](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/aws_ec2_cost_predictor.png)
+
+**Usage vs waste.** What the server costs compared with how much of it is actually used.
+
+![Usage vs waste dashboard](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/usage_vs_waste.png)
 
 ---
 
