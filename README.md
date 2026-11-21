@@ -125,7 +125,7 @@ Everything is code. **Terraform** creates the server, **Kubernetes manifests** d
 
 ## 📸 3. Project Tour (Screenshots)
 
-This is what the running stack looks like, in the order data flows through it: server, alerting, cluster, node, workload.
+This is what the running stack looks like, in the order data flows through it: server, alerting, cluster, cost, workload.
 
 ### Step 1: The server (AWS EC2)
 
@@ -145,15 +145,15 @@ The big picture: how much of the cluster's pod, CPU and memory capacity is alrea
 
 ![Kubernetes cluster requests and capacity](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/grafana-kubernetes-cluster.png)
 
-### Step 4: Each node (Node Exporter dashboard)
+### Step 4: Cost and utilization (FinOps dashboard)
 
-Zoom in to a single node: CPU busy, system load, RAM, swap and uptime.
+Current CPU, RAM and disk utilization for each node, with trends over time. Low usage next to a steady cost is how you spot over-provisioned resources.
 
-![Node Exporter overview](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/node-exporter-overview.png)
+![FinOps resource utilization](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-resource-utilization.png)
 
-Then the trends over time: load, memory, disk I/O and the top memory-hungry pods.
+Capacity forecasting predicts RAM usage for the next 14 days, so you can see whether you will run out before it happens.
 
-![Node Exporter metrics](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/node-exporter-metrics.png)
+![FinOps capacity forecast](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-capacity-forecast.png)
 
 ### Step 5: The workloads (pod and node health)
 
@@ -161,7 +161,7 @@ Are the pods healthy? Running count, restarts, CPU idle and node storage at a gl
 
 ![Pod and node health](https://raw.githubusercontent.com/Shubhamx18/overwatch/main/assets/finops-pod-node-health.png)
 
-> **Reading the screenshots:** cluster, node and pod views are all driven by the same Prometheus data. Only the zoom level changes.
+> **Reading the screenshots:** cluster, cost and pod views are all driven by the same Prometheus data. Only the zoom level changes.
 
 ---
 
